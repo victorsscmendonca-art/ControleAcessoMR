@@ -42,7 +42,21 @@ public class EspCliente : MonoBehaviour
             using (var req = UnityWebRequest.Get(endereco))
             {
                 req.timeout = 2;
-                yield return req.SendWebRequest();
+
+                // Erro ao iniciar a conexao nao pode parar a consulta para sempre.
+                UnityWebRequestAsyncOperation op = null;
+
+                try { op = req.SendWebRequest(); }
+                catch (InvalidOperationException e) { Debug.LogWarning("ESP32: " + e.Message); }
+
+                if (op == null)
+                {
+                    Conectado = false;
+                    yield return espera;
+                    continue;
+                }
+
+                yield return op;
 
                 Conectado = req.result == UnityWebRequest.Result.Success;
 

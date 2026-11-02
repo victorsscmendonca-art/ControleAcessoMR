@@ -38,6 +38,12 @@ public class ControleAcessoMR : MonoBehaviour
     [Header("Diagnostico")]
     public bool mostrarPainel = true;
 
+    [Header("Simulacao com as maos")]
+    public Transform botoesSimulacao;
+
+    const float DistanciaBotoes = 0.25f;
+    const float AlturaBotoes = 0.05f;
+
     readonly List<Item> itens = new List<Item>();
     Font fonte;
     Material matBase;
@@ -82,6 +88,8 @@ public class ControleAcessoMR : MonoBehaviour
         CarregarCalibracao();
         CriarRaizEEtiquetas();
         CriarFluxo();
+
+        if (botoesSimulacao != null) botoesSimulacao.gameObject.SetActive(false);
 
         if (mostrarPainel) CriarPainel();
 
@@ -195,6 +203,7 @@ public class ControleAcessoMR : MonoBehaviour
         }
 
         PlayerPrefs.Save();
+        PosicionarBotoes();
         Mostrar("Calibracao salva");
     }
 
@@ -510,6 +519,30 @@ public class ControleAcessoMR : MonoBehaviour
 
         raiz.gameObject.SetActive(true);
         modo = Modo.Manual;
+        PosicionarBotoes();
+    }
+
+    // Painel de botoes fica parado na frente do kit, virado para a pessoa.
+    // Nao segue a cabeca, para nao fugir do dedo na hora de apertar.
+    void PosicionarBotoes()
+    {
+        if (botoesSimulacao == null) return;
+        if (cabeca == null) cabeca = Cabeca();
+        if (cabeca == null) return;
+
+        Vector3 centro = Vector3.zero;
+        foreach (var it in itens) centro += it.ancora.position;
+        centro /= itens.Count;
+
+        Vector3 paraCabeca = Vector3.ProjectOnPlane(cabeca.position - centro, Vector3.up);
+        if (paraCabeca.sqrMagnitude < 0.01f) paraCabeca = -Vector3.forward;
+        paraCabeca.Normalize();
+
+        Vector3 p = centro + paraCabeca * DistanciaBotoes + Vector3.up * AlturaBotoes;
+
+        botoesSimulacao.position = p;
+        botoesSimulacao.rotation = Quaternion.LookRotation(p - cabeca.position, Vector3.up);
+        botoesSimulacao.gameObject.SetActive(true);
     }
 
     // ---------- ESP32 e animacao ----------
@@ -569,6 +602,7 @@ public class ControleAcessoMR : MonoBehaviour
 
         raiz.gameObject.SetActive(true);
         modo = Modo.QR;
+        PosicionarBotoes();
     }
 
     void OnTrackableRemoved(MRUKTrackable trackable)
