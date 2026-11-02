@@ -13,6 +13,10 @@ public class FluxoAcesso : MonoBehaviour
     const float AlturaPainel = 0.28f;
     const float TamanhoTexto = 0.0022f;
     const float TamanhoPulso = 0.025f;
+    const float AlturaModeloCadeado = 1f;   // altura do modelo no Blender
+    const float EspacoCadeado = 0.02f;
+
+    static readonly Color CorFechadura = new Color(0.05f, 0.05f, 0.05f, 1f);
 
     static readonly Color Verde = new Color(0.25f, 1f, 0.45f, 0.95f);
     static readonly Color Vermelho = new Color(1f, 0.3f, 0.3f, 0.95f);
@@ -28,7 +32,12 @@ public class FluxoAcesso : MonoBehaviour
     Renderer pulso;
     Coroutine atual;
 
-    public void Configurar(Transform pai, Transform[] ancoras, Material matBase, Font fonte)
+    Transform cadeadoT;
+    GameObject cadeadoAberto, cadeadoFechado;
+    Renderer[] pecasCadeado;
+
+    public void Configurar(Transform pai, Transform[] ancoras, Material matBase, Font fonte,
+                           GameObject modeloCadeado)
     {
         this.ancoras = ancoras;
 
@@ -55,7 +64,48 @@ public class FluxoAcesso : MonoBehaviour
         if (matBase != null)
             fundo = NovaForma(PrimitiveType.Quad, "Fundo", painel, matBase, out fundoT);
 
+        if (modeloCadeado != null && matBase != null)
+            CriarCadeado(modeloCadeado, matBase);
+
         go.SetActive(false);
+    }
+
+    void CriarCadeado(GameObject modelo, Material matBase)
+    {
+        var inst = Instantiate(modelo, painel);
+        inst.name = "Cadeado";
+        cadeadoT = inst.transform;
+
+        // A frente do modelo (fechadura) vem do Blender virada para longe de quem olha.
+        cadeadoT.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+        cadeadoAberto = cadeadoT.Find("CadeadoAberto")?.gameObject;
+        cadeadoFechado = cadeadoT.Find("CadeadoFechado")?.gameObject;
+
+        // Material sem luz, como o resto do painel; a fechadura fica escura.
+        pecasCadeado = inst.GetComponentsInChildren<Renderer>(true);
+
+        foreach (var r in pecasCadeado)
+        {
+            r.material = new Material(matBase);
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+
+            if (r.name.Contains("Fechadura")) r.material.color = CorFechadura;
+        }
+    }
+
+    void PrepararCadeado(bool aberto, Color cor)
+    {
+        if (cadeadoT == null) return;
+
+        if (cadeadoAberto != null) cadeadoAberto.SetActive(aberto);
+        if (cadeadoFechado != null) cadeadoFechado.SetActive(!aberto);
+
+        foreach (var r in pecasCadeado)
+        {
+            if (!r.name.Contains("Fechadura")) r.material.color = cor;
+        }
     }
 
     // Retorna false para eventos que nao tem animacao (ex.: leitura para cadastro).
@@ -103,12 +153,15 @@ public class FluxoAcesso : MonoBehaviour
                 return false;
         }
 
+        // Cadeado aberto quando a cancela abre (ou ja esta aberta).
+        bool aberto = cor == Verde || cor == Amarelo;
+
         if (atual != null) StopCoroutine(atual);
-        atual = StartCoroutine(Animar(caminho, cor, titulo));
+        atual = StartCoroutine(Animar(caminho, cor, titulo, aberto));
         return true;
     }
 
-    IEnumerator Animar(int[] caminho, Color cor, string titulo)
+    IEnumerator Animar(int[] caminho, Color cor, string titulo, bool aberto)
     {
         painel.gameObject.SetActive(false);
 
@@ -142,6 +195,7 @@ public class FluxoAcesso : MonoBehaviour
         if (fundo != null)
             fundo.material.color = new Color(cor.r * 0.12f, cor.g * 0.12f, cor.b * 0.12f, 0.8f);
 
+        PrepararCadeado(aberto, cor);
         painel.gameObject.SetActive(true);
         PosicionarPainel();
 
@@ -184,8 +238,26 @@ public class FluxoAcesso : MonoBehaviour
 
         Bounds b = texto.GetComponent<MeshRenderer>().localBounds;
 
-        fundoT.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
-        fundoT.localScale = new Vector3(b.size.x + 0.06f, b.size.y + 0.04f, 1f);
+        // Cadeado a esquerda do texto, da mesma altura que ele.
+        float extra = 0f;
+
+        if (cadeadoT != null)
+        {
+            float altura = b.size.y * 0.9f;
+            float largura = altura * 0.8f;
+
+            cadeadoT.localScale = Vector3.one * (altura / AlturaModeloCadeado);
+            cadeadoT.localPosition = new Vector3(
+                b.min.x - EspacoCadeado - largura * 0.5f,
+                b.center.y - altura * 0.5f,
+                -0.01f
+            );
+
+            extra = largura + EspacoCadeado;
+        }
+
+        fundoT.localPosition = new Vector3(b.center.x - extra * 0.5f, b.center.y, 0.002f);
+        fundoT.localScale = new Vector3(b.size.x + 0.06f + extra, b.size.y + 0.04f, 1f);
     }
 
     static Renderer NovaForma(PrimitiveType tipo, string nome, Transform pai, Material matBase, out Transform t)

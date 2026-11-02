@@ -41,6 +41,9 @@ public class ControleAcessoMR : MonoBehaviour
     [Header("Simulacao com as maos")]
     public Transform botoesSimulacao;
 
+    [Header("Modelos 3D")]
+    public GameObject modeloCadeado;
+
     const float DistanciaBotoes = 0.25f;
     const float AlturaBotoes = 0.05f;
 
@@ -554,7 +557,7 @@ public class ControleAcessoMR : MonoBehaviour
             ancoras[i] = itens[i].ancora;
 
         fluxo = gameObject.AddComponent<FluxoAcesso>();
-        fluxo.Configurar(ajuste, ancoras, matBase, fonte);
+        fluxo.Configurar(ajuste, ancoras, matBase, fonte, modeloCadeado);
 
         esp = gameObject.AddComponent<EspCliente>();
         esp.NovoEvento += OnEventoEsp;

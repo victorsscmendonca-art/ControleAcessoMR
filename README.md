@@ -96,7 +96,7 @@ clique analógico esq. apagar calibração · analógicos movem.
 - [x] Animação: setas de luz leitor → ESP32 → LCD → servo + painel verde/vermelho
 - [x] Simulação pelo botão Menu (teclas 1/2 no Editor) (testar sem o kit e plano B na feira)
 - [x] Uso com as mãos: painel "SIMULAR AUTORIZADO / NEGADO" (toque com o dedo ou raio do controle), rig do Interaction SDK com locomoção desligada. Recriar: menu ControleAcessoMR > Montar botoes de simulacao
-- [ ] Modelos 3D leves no Blender (opcional: cadeado, cartão)
+- [x] Cadeado 3D (aberto/fechado, 436 faces) no painel de resultado. Fonte: `Modelos3D/Cadeado.blend` → `Assets/ControleAcessoMR/Modelos/Cadeado.fbx`
 - [ ] Teste no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas
