@@ -18,6 +18,11 @@ Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escrito
 
 > **Feira:** última semana de novembro de 2026.
 > Dono do projeto: iniciante em Unity/Blender. Explicar tudo em português simples.
+>
+> **Regras para o agente:** usar automaticamente todas as skills úteis (Meta `hz-*`, Unity, Blender,
+> ponytail, graphify, design...) sem perguntar; sempre que possível mostrar o resultado com foto
+> (captura do Unity/Blender); backup git antes de mexer; plano antes de mudanças grandes.
+> **Não gerar APK até o dono pedir.**
 
 ---
 
