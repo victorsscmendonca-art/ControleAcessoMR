@@ -8,7 +8,9 @@ using UnityEngine;
 // Window > General > Test Runner > EditMode > Run All.
 public class TestesAcesso
 {
-    const int Servo = 3;
+    const int Servo = FluxoAcesso.Servo;
+
+    static bool ChegaAoServo(FluxoAcesso.RotaAcesso r) => r.etapas.Any(e => e.Any(x => x.para == Servo));
 
     // Todas as respostas que o ESP32 pode mandar precisam ter animacao no oculos.
     // Se alguem renomear um status no .ino, este teste falha antes da feira.
@@ -28,7 +30,7 @@ public class TestesAcesso
         Assert.That(status, Has.Count.GreaterThan(5), "nao achei os status no .ino");
 
         foreach (var s in status)
-            Assert.IsTrue(FluxoAcesso.Rota(s, out _, out _, out _), "sem animacao para: " + s);
+            Assert.IsNotNull(FluxoAcesso.Rota(s), "sem animacao para: " + s);
     }
 
     [Test]
@@ -37,9 +39,10 @@ public class TestesAcesso
         string s = ControleAcessoMR.StatusDoCartao(liberado: true, cancelaAberta: false);
 
         Assert.AreEqual("ENTRADA ABERTA", s);
-        Assert.IsTrue(FluxoAcesso.Rota(s, out int[] caminho, out _, out string titulo));
-        Assert.AreEqual(Servo, caminho.Last(), "a luz precisa chegar ao servo");
-        StringAssert.Contains("AUTORIZADO", titulo);
+        var rota = FluxoAcesso.Rota(s);
+        Assert.IsNotNull(rota);
+        Assert.IsTrue(ChegaAoServo(rota), "a luz precisa chegar ao servo");
+        StringAssert.Contains("AUTORIZADO", rota.titulo);
     }
 
     [Test]
@@ -56,9 +59,10 @@ public class TestesAcesso
             string s = ControleAcessoMR.StatusDoCartao(liberado: false, cancelaAberta: aberta);
 
             Assert.AreEqual("NAO CADASTRADO", s);
-            Assert.IsTrue(FluxoAcesso.Rota(s, out int[] caminho, out _, out string titulo));
-            CollectionAssert.DoesNotContain(caminho, Servo, "negado nao pode mexer na cancela");
-            StringAssert.Contains("NEGADO", titulo);
+            var rota = FluxoAcesso.Rota(s);
+            Assert.IsNotNull(rota);
+            Assert.IsFalse(ChegaAoServo(rota), "negado nao pode mexer na cancela");
+            StringAssert.Contains("NEGADO", rota.titulo);
         }
     }
 }

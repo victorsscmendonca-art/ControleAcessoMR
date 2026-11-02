@@ -28,6 +28,7 @@ public class ControleAcessoMR : MonoBehaviour
 
     const float TamanhoEtiqueta = 0.0011f;
     const float TamanhoPainel = 0.004f;
+    const float TempoVitrine = 40f;   // parado ha 40 s: simula sozinho (modo vitrine da feira)
     const float AlturaEtiqueta = 0.13f;
     const float TempoFechamentoVirtual = 8f;
 
@@ -77,7 +78,8 @@ public class ControleAcessoMR : MonoBehaviour
     readonly List<Etiqueta> etiquetas = new List<Etiqueta>();
     Font fonte;
     Material matBase;
-    TextMesh painel;
+    TextMesh painel, boasVindas;
+    float ultimaAtividade;
     Transform raiz, ajuste, cabeca;
     MRUKTrackable qrAtual;
     Modo modo = Modo.Aguardando;
@@ -271,6 +273,7 @@ public class ControleAcessoMR : MonoBehaviour
     {
         LerControles();
         AtualizarPainel();
+        AtualizarBoasVindas();
 
         if (fecharVirtualEm > 0f && Time.time > fecharVirtualEm)
         {
@@ -750,6 +753,36 @@ public class ControleAcessoMR : MonoBehaviour
         go.transform.localPosition = new Vector3(0f, -0.25f, 1.0f);
 
         painel = ConfigurarTexto(go, "iniciando...", TamanhoPainel);
+        painel.gameObject.SetActive(false);   // so para o apresentador: botao B
+    }
+
+    // ---------- Boas-vindas e modo vitrine ----------
+    void AtualizarBoasVindas()
+    {
+        if (fluxo == null || !raiz.gameObject.activeSelf)
+        {
+            if (boasVindas != null) boasVindas.gameObject.SetActive(false);
+            ultimaAtividade = Time.time;
+            return;
+        }
+
+        if (boasVindas == null)
+        {
+            var go = new GameObject("BoasVindas");
+            go.transform.SetParent(ajuste, false);
+            go.transform.localPosition = new Vector3(0f, fluxo.alturaPainel + 0.08f, 0f);   // acima das etiquetas
+            boasVindas = ConfigurarTexto(go, "BEM-VINDO!\nPegue um cartao e\nencoste no LEITOR RFID", fluxo.tamanhoTexto * 1.3f);
+            boasVindas.color = new Color(0.55f, 0.9f, 1f);
+        }
+
+        bool livre = !fluxo.Ocupado;
+        boasVindas.gameObject.SetActive(livre);
+
+        if (livre && cabeca != null)
+            boasVindas.transform.rotation = Quaternion.LookRotation(boasVindas.transform.position - cabeca.position, Vector3.up);
+
+        if (!livre) ultimaAtividade = Time.time;
+        else if (Time.time - ultimaAtividade > TempoVitrine) Simular(proximaSimulacaoNegada);
     }
 
     bool TemPermissaoCena()

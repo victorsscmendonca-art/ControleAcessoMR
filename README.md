@@ -140,6 +140,9 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - [x] Kit virtual 3D igual à foto (RC522, ESP32, LCD, servo+cancela, protoboard, buzzer, fios, 2 cartões)
 - [x] Cartão virtual no leitor → luz, LCD escreve, cancela sobe, buzzer, painel (testado no Editor: liberado e negado)
 - [x] Revisão geral (Meta code review + ponytail-review) e correções
+- [x] Versão melhorada: luz percorre os fios (ESP32 → LCD e servo ao mesmo tempo), legenda contando a história, ondas no leitor, ESP32 brilha, LCD digita letra a letra, sons de sinal e motor
+- [x] Feira: mensagem de boas-vindas, painel de diagnóstico escondido (botão B), **modo vitrine** (40 s parado → simula sozinho, alternando liberado/negado)
+- [x] Meta XR Simulator v207 instalado (Window > Meta > Meta XR Simulator > Activate) para testar no PC
 - [ ] Gerar APK e testar no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas

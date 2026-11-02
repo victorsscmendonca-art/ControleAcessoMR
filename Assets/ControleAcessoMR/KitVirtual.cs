@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using Oculus.Interaction;
 using UnityEngine;
 
@@ -13,9 +15,15 @@ public class KitVirtual : MonoBehaviour
     const float IntervaloLeitura = 2f;
     const float DistanciaDevolver = 0.6f;     // largado longe do kit volta ao lugar
     const float AnguloAberto = 80f;
-    const float VelocidadeCancela = 160f;     // graus por segundo
-    const float TempoMensagemLcd = 5f;
+    const float VelocidadeCancela = 90f;      // graus por segundo (devagar, da para ver)
+    const float TempoMensagemLcd = 6f;
     const float FrequenciaBip = 2400f;
+    const float LetrasPorSegundo = 22f;       // LCD escrevendo letra por letra
+    const float RaioOndas = 0.07f;            // ondas de radio saindo do leitor
+    const float TamanhoBrilhoEsp = 0.035f;
+
+    static readonly Color CorOnda = new Color(0.3f, 0.85f, 1f, 1f);
+    static readonly Color CorBrilhoEsp = new Color(0.3f, 1f, 0.6f, 1f);
 
     // Ordem igual a do FluxoAcesso: leitor, ESP32, LCD, servo.
     public Transform[] Ancoras { get; private set; }
@@ -38,8 +46,17 @@ public class KitVirtual : MonoBehaviour
     Cartao[] cartoes;
     Transform leitor, pivo, ponta, tela;
     TextMesh textoLcd;
-    AudioSource som;
-    AudioClip bip;
+    Coroutine digitando;
+    AudioSource som, somServo, somSinal;
+    AudioClip bip, blip, motor;
+
+    // Pontos ao longo dos fios (vazios "Caminho_<de>_<para>_NN" do Blender).
+    readonly Dictionary<string, Transform[]> caminhos = new Dictionary<string, Transform[]>();
+
+    Material matBrilho;
+    LineRenderer[] ondas;
+    Transform brilhoEsp;
+    Renderer brilhoEspR;
 
     Vector3 eixoCancela;
     float sinalAbrir = 1f;
@@ -66,6 +83,23 @@ public class KitVirtual : MonoBehaviour
             NovoCartao("Cartao_Liberado", true),
             NovoCartao("Cartao_Negado", false)
         };
+
+        foreach (var g in GetComponentsInChildren<Transform>(true)
+                     .Where(t => t.name.StartsWith("Caminho_"))
+                     .GroupBy(t => t.name.Substring(0, t.name.LastIndexOf('_'))))
+        {
+            caminhos[g.Key.Substring("Caminho_".Length)] = g.OrderBy(t => t.name).ToArray();
+        }
+    }
+
+    // Caminho do sinal pelos fios, em posicoes do mundo (o kit pode ter mexido).
+    // Sem pontos no modelo, vai em linha reta de uma peca a outra.
+    public Vector3[] Caminho(int de, int para)
+    {
+        if (caminhos.TryGetValue(de + "_" + para, out var pts))
+            return pts.Select(t => t.position).ToArray();
+
+        return new[] { Ancoras[de].position, Ancoras[para].position };
     }
 
     // Start (e nao Awake): roda quando o kit aparece de verdade, ja posicionado.
@@ -83,6 +117,106 @@ public class KitVirtual : MonoBehaviour
         PrepararCancela(frente);
         PrepararLcd(frente);
         PrepararSom();
+        PrepararEfeitos();
+    }
+
+    // ---------- Efeitos: ondas no leitor e brilho no ESP32 ----------
+    void PrepararEfeitos()
+    {
+        var sh = Shader.Find("Sprites/Default");
+        if (sh == null) return;
+        matBrilho = new Material(sh);
+
+        ondas = new LineRenderer[3];
+        for (int i = 0; i < ondas.Length; i++)
+        {
+            var go = new GameObject("OndaRadio" + i);
+            go.transform.SetParent(leitor, false);
+            var lr = go.AddComponent<LineRenderer>();
+            lr.useWorldSpace = true;
+            lr.loop = true;
+            lr.positionCount = 32;
+            lr.material = matBrilho;
+            lr.widthMultiplier = 0.003f;
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+            lr.enabled = false;
+            ondas[i] = lr;
+        }
+
+        var b = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Destroy(b.GetComponent<Collider>());
+        b.name = "BrilhoESP32";
+        brilhoEsp = b.transform;
+        brilhoEsp.SetParent(Ancoras[1], false);
+        brilhoEspR = b.GetComponent<Renderer>();
+        brilhoEspR.material = matBrilho;
+        brilhoEspR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        b.SetActive(false);
+    }
+
+    // Circulos crescendo e sumindo sobre o leitor, como o sinal de radio do RFID.
+    IEnumerator OndasDeRadio()
+    {
+        if (ondas == null) yield break;
+
+        const float duracao = 0.9f;
+
+        for (float t = 0f; t < duracao; t += Time.deltaTime)
+        {
+            // Circulos deitados um pouco acima do leitor (o kit pode estar inclinado,
+            // entao usa os eixos do proprio leitor, sem a escala).
+            Vector3 centro = leitor.position + leitor.up * 0.006f;
+            Vector3 eixoA = leitor.right.normalized, eixoB = leitor.forward.normalized;
+            if (Mathf.Abs(Vector3.Dot(leitor.up.normalized, Vector3.up)) < 0.5f)
+            {
+                // Eixos do modelo trocados na conversao: usa o plano do kit.
+                eixoA = transform.right.normalized; eixoB = transform.forward.normalized;
+                centro = leitor.position + transform.up * 0.006f;
+            }
+
+            for (int i = 0; i < ondas.Length; i++)
+            {
+                float f = Mathf.Repeat(t / duracao * 1.5f - i * 0.25f, 1f);
+                var lr = ondas[i];
+                lr.enabled = true;
+
+                float r = RaioOndas * (0.3f + f);
+
+                for (int k = 0; k < lr.positionCount; k++)
+                {
+                    float a = k * Mathf.PI * 2f / lr.positionCount;
+                    lr.SetPosition(k, centro + (eixoA * Mathf.Cos(a) + eixoB * Mathf.Sin(a)) * r);
+                }
+
+                var c = CorOnda; c.a = 1f - f;
+                lr.startColor = lr.endColor = c;
+            }
+
+            yield return null;
+        }
+
+        foreach (var lr in ondas) lr.enabled = false;
+    }
+
+    // ESP32 "pensando": uma luz que pulsa sobre o chip.
+    IEnumerator BrilhoDoEsp()
+    {
+        if (brilhoEsp == null) yield break;
+
+        brilhoEsp.gameObject.SetActive(true);
+        float escala = 1f / brilhoEsp.parent.lossyScale.x;
+
+        for (float t = 0f; t < 0.8f; t += Time.deltaTime)
+        {
+            float p = Mathf.Abs(Mathf.Sin(t * Mathf.PI * 4f));
+            brilhoEsp.localScale = Vector3.one * TamanhoBrilhoEsp * (0.6f + 0.4f * p) * escala;
+            var c = CorBrilhoEsp; c.a = 0.25f + 0.45f * p;
+            brilhoEspR.material.color = c;
+            yield return null;
+        }
+
+        brilhoEsp.gameObject.SetActive(false);
     }
 
     Transform Achar(string nome)
@@ -158,7 +292,10 @@ public class KitVirtual : MonoBehaviour
 
     public void ChegouNo(int no)
     {
-        if (no == 1) Bipar(statusAtual);
+        if (!isActiveAndEnabled) { if (no == 3) AplicarCancela(); return; }
+
+        if (no == 0) { StartCoroutine(OndasDeRadio()); Tocar(somSinal, blip); }
+        if (no == 1) { StartCoroutine(BrilhoDoEsp()); Bipar(statusAtual); }
         if (no == 2) AplicarLcd();
         if (no == 3) AplicarCancela();
     }
@@ -178,21 +315,21 @@ public class KitVirtual : MonoBehaviour
         switch (statusAtual)
         {
             case "ENTRADA ABERTA":
-                EscreverLcd("ACESSO LIBERADO", "BEM-VINDO!"); break;
+                EscreverLcd("ACESSO LIBERADO", "BEM-VINDO!", true); break;
             case "ABERTURA MANUAL":
-                EscreverLcd("CANCELA ABERTA", "ADMINISTRADOR"); break;
+                EscreverLcd("CANCELA ABERTA", "ADMINISTRADOR", true); break;
             case "NAO CADASTRADO":
-                EscreverLcd("ACESSO NEGADO", "NAO CADASTRADO"); break;
+                EscreverLcd("ACESSO NEGADO", "NAO CADASTRADO", true); break;
             case "BLOQUEADO":
-                EscreverLcd("ACESSO NEGADO", "BLOQUEADO"); break;
+                EscreverLcd("ACESSO NEGADO", "BLOQUEADO", true); break;
             case "FALHA NO SERVO":
-                EscreverLcd("FALHA NO SERVO", ""); break;
+                EscreverLcd("FALHA NO SERVO", "", true); break;
             case "PORTA JA ABERTA":
-                EscreverLcd("JA ESTA ABERTA", ""); break;
+                EscreverLcd("JA ESTA ABERTA", "", true); break;
             case "FECHAMENTO AUTOMATICO":
-                EscreverLcd("FECHOU SOZINHA", ""); break;
+                EscreverLcd("FECHOU SOZINHA", "", true); break;
             default:
-                EscreverLcd("CANCELA FECHADA", ""); break;
+                EscreverLcd("CANCELA FECHADA", "", true); break;
         }
 
         lcdVoltaEm = Time.time + TempoMensagemLcd;
@@ -238,7 +375,15 @@ public class KitVirtual : MonoBehaviour
 
     void AtualizarCancela()
     {
-        if (Mathf.Approximately(anguloAtual, anguloAlvo)) return;
+        bool mexendo = !Mathf.Approximately(anguloAtual, anguloAlvo);
+
+        // Som do motor do servo so enquanto a cancela gira.
+        if (somServo != null && mexendo != somServo.isPlaying)
+        {
+            if (mexendo) somServo.Play(); else somServo.Stop();
+        }
+
+        if (!mexendo) return;
 
         anguloAtual = Mathf.MoveTowards(anguloAtual, anguloAlvo, VelocidadeCancela * Time.deltaTime);
         pivo.localRotation = rotFechada * Quaternion.AngleAxis(anguloAtual * sinalAbrir, eixoCancela);
@@ -298,9 +443,29 @@ public class KitVirtual : MonoBehaviour
         textoLcd.text = atual;
     }
 
-    void EscreverLcd(string linha1, string linha2)
+    void EscreverLcd(string linha1, string linha2, bool digitar = false)
     {
-        textoLcd.text = linha1 + "\n" + linha2;
+        if (digitando != null) StopCoroutine(digitando);
+        digitando = null;
+
+        string final = linha1 + "\n" + linha2;
+
+        if (digitar && isActiveAndEnabled) digitando = StartCoroutine(Digitar(final));
+        else textoLcd.text = final;
+    }
+
+    // LCD escreve letra por letra, como o LCD real atualizando.
+    IEnumerator Digitar(string final)
+    {
+        var espera = new WaitForSeconds(1f / LetrasPorSegundo);
+
+        for (int i = 0; i <= final.Length; i++)
+        {
+            textoLcd.text = final.Substring(0, i);
+            yield return espera;
+        }
+
+        digitando = null;
     }
 
     // ---------- Buzzer ----------
@@ -323,6 +488,49 @@ public class KitVirtual : MonoBehaviour
 
         bip = AudioClip.Create("Bip", n, 1, taxa, false);
         bip.SetData(dados, 0);
+
+        // Sinal do leitor: "blip" suave. Servo: zumbido grave em loop enquanto a cancela mexe.
+        somSinal = NovaFonte(leitor, 0.5f);
+        blip = Tom("Blip", taxa, 0.06f, 1400f, 0.2f, false);
+
+        somServo = NovaFonte(Ancoras[FluxoAcesso.Servo], 0.25f);
+        somServo.loop = true;
+        motor = Tom("Motor", taxa, 0.5f, 150f, 0.15f, true);
+        somServo.clip = motor;
+    }
+
+    AudioSource NovaFonte(Transform onde, float volume)
+    {
+        var s = onde.gameObject.AddComponent<AudioSource>();
+        s.spatialBlend = 1f;
+        s.minDistance = 0.3f;
+        s.playOnAwake = false;
+        s.volume = volume;
+        return s;
+    }
+
+    // Senoide simples; "aspero" soma harmonicos para soar como motor.
+    static AudioClip Tom(string nome, int taxa, float duracao, float freq, float volume, bool aspero)
+    {
+        int n = Mathf.RoundToInt(taxa * duracao);
+        var dados = new float[n];
+
+        for (int i = 0; i < n; i++)
+        {
+            float t = 2f * Mathf.PI * freq * i / taxa;
+            float onda = aspero ? Mathf.Sin(t) + 0.5f * Mathf.Sin(2f * t) + 0.3f * Mathf.Sin(3f * t) : Mathf.Sin(t);
+            float envelope = aspero ? 1f : Mathf.Min(1f, Mathf.Min(i, n - i) / 200f);
+            dados[i] = onda * volume * envelope;
+        }
+
+        var clip = AudioClip.Create(nome, n, 1, taxa, false);
+        clip.SetData(dados, 0);
+        return clip;
+    }
+
+    void Tocar(AudioSource s, AudioClip c)
+    {
+        if (s != null && c != null && isActiveAndEnabled) s.PlayOneShot(c);
     }
 
     // Mesmos padroes do buzzer real (ESP32): abrir 1, fechar 2, negado 3, ja aberta 2.
