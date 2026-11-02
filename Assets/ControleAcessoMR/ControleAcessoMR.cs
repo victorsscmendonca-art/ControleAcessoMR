@@ -31,6 +31,12 @@ public class ControleAcessoMR : MonoBehaviour
     const float AlturaEtiqueta = 0.13f;
     const float TempoFechamentoVirtual = 8f;
 
+    // O kit virtual flutua acima da mesa: o real fica embaixo, a vista e ao alcance da mao.
+    const float AlturaFlutuando = 0.35f;
+    // Quase transparente: o kit real, embaixo, precisa continuar visivel.
+    static readonly Color CorBandeja = new Color(0.3f, 0.85f, 1f, 0.04f);
+    static readonly Color CorBordaBandeja = new Color(0.3f, 0.85f, 1f, 0.7f);
+
     // Botoes na frente-direita do kit (os cartoes ficam na frente-esquerda).
     const float DistanciaBotoes = 0.3f;
     const float LadoBotoes = 0.25f;
@@ -134,6 +140,7 @@ public class ControleAcessoMR : MonoBehaviour
             go.name = "KitVirtual";
             kit = go.GetComponent<KitVirtual>();
             kit.CartaoLido += OnCartaoVirtual;
+            CriarBandeja(go);
         }
         else
         {
@@ -141,6 +148,47 @@ public class ControleAcessoMR : MonoBehaviour
         }
 
         raiz.gameObject.SetActive(false);
+    }
+
+    // "Bandeja holografica" translucida embaixo do kit flutuante: ajuda o olho a
+    // entender a altura do kit (sem ela parece solto no ar).
+    void CriarBandeja(GameObject kitGo)
+    {
+        if (matBase == null) return;
+
+        // Neste momento a raiz esta na origem, entao a caixa no mundo = caixa local.
+        var rs = kitGo.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) return;
+
+        Bounds b = rs[0].bounds;
+        foreach (var r in rs) b.Encapsulate(r.bounds);
+
+        float y = b.min.y - 0.003f;
+        float lx = b.size.x + 0.06f, lz = b.size.z + 0.06f;
+
+        var tampo = NovaForma(PrimitiveType.Quad, "Bandeja", ajuste, out var tampoT);
+        tampo.material.color = CorBandeja;
+        tampoT.localPosition = new Vector3(b.center.x, y, b.center.z);
+        tampoT.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        tampoT.localScale = new Vector3(lx, lz, 1f);
+
+        // Contorno brilhante: 4 filetes finos nas bordas.
+        const float fio = 0.004f;
+        var lados = new[]
+        {
+            (new Vector3(0f, 0f, lz / 2f), new Vector3(lx, fio, fio)),
+            (new Vector3(0f, 0f, -lz / 2f), new Vector3(lx, fio, fio)),
+            (new Vector3(lx / 2f, 0f, 0f), new Vector3(fio, fio, lz)),
+            (new Vector3(-lx / 2f, 0f, 0f), new Vector3(fio, fio, lz))
+        };
+
+        foreach (var (pos, tam) in lados)
+        {
+            var borda = NovaForma(PrimitiveType.Cube, "BandejaBorda", ajuste, out var bordaT);
+            borda.material.color = CorBordaBandeja;
+            bordaT.localPosition = new Vector3(b.center.x, y, b.center.z) + pos;
+            bordaT.localScale = tam;
+        }
     }
 
     // A posicao do kit em relacao ao QR fica salva (ajuste com os analogicos + Y).
@@ -257,7 +305,7 @@ public class ControleAcessoMR : MonoBehaviour
         // O kit e montado com os cartoes em -Z: o +Z da raiz aponta para longe de
         // quem le o QR, e o leitor fica a esquerda dessa pessoa.
         Vector3 longe = Vector3.Cross(direita.normalized, Vector3.up);
-        raiz.SetPositionAndRotation(qr.position, Quaternion.LookRotation(longe, Vector3.up));
+        raiz.SetPositionAndRotation(qr.position + Vector3.up * AlturaFlutuando, Quaternion.LookRotation(longe, Vector3.up));
     }
 
     // ---------- Controles do apresentador ----------
@@ -376,7 +424,8 @@ public class ControleAcessoMR : MonoBehaviour
         return Camera.main != null ? Camera.main.transform : null;
     }
 
-    // Plano B sem QR: kit na frente da pessoa, mais ou menos na altura de uma mesa.
+    // Plano B sem QR: kit na frente da pessoa, flutuando na altura do peito
+    // (mais ou menos uma mesa + AlturaFlutuando).
     void PosicionarManual()
     {
         if (cabeca == null) cabeca = Cabeca();
@@ -391,7 +440,7 @@ public class ControleAcessoMR : MonoBehaviour
 
         qrAtual = null;
 
-        raiz.position = cabeca.position + frente * 0.6f + Vector3.down * 0.45f;
+        raiz.position = cabeca.position + frente * 0.6f + Vector3.down * (0.45f - AlturaFlutuando * 0.5f);
         raiz.rotation = Quaternion.LookRotation(frente, Vector3.up);
 
         Mostrar(raiz.gameObject.activeSelf ? "Kit reposicionado" : "Kit posicionado");
