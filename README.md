@@ -26,6 +26,8 @@ Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escrito
 
 ---
 
+> **Guia de teste passo a passo e tabela de botões:** [GUIA_DE_TESTE.md](GUIA_DE_TESTE.md)
+
 ## O kit físico
 
 | Peça | Função |
