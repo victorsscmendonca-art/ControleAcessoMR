@@ -57,6 +57,11 @@ public class ControleAcessoMR : MonoBehaviour
     float mensagemAte;
     float proximaAtualizacao;
 
+    EspCliente esp;
+    FluxoAcesso fluxo;
+    bool proximaSimulacaoNegada;
+    string ultimoEsp = "(nenhum)";
+
     static readonly Color FundoNormal = new Color(0f, 0f, 0f, 0.65f);
     static readonly Color FundoAlvo = new Color(0.1f, 0.35f, 0.9f, 0.85f);
     static readonly Color Ciano = new Color(0.2f, 0.8f, 1f, 0.22f);
@@ -76,6 +81,7 @@ public class ControleAcessoMR : MonoBehaviour
         CriarItensPadrao();
         CarregarCalibracao();
         CriarRaizEEtiquetas();
+        CriarFluxo();
 
         if (mostrarPainel) CriarPainel();
 
@@ -91,6 +97,8 @@ public class ControleAcessoMR : MonoBehaviour
 
     void OnDestroy()
     {
+        if (esp != null) esp.NovoEvento -= OnEventoEsp;
+
         if (MRUK.Instance != null)
         {
             MRUK.Instance.SceneSettings.TrackableAdded.RemoveListener(OnTrackableAdded);
@@ -286,6 +294,21 @@ public class ControleAcessoMR : MonoBehaviour
     // ---------- Controles ----------
     void LerControles()
     {
+        // Botao Menu (controle esquerdo): simula o cartao,
+        // alternando autorizado e negado. Plano B sem o ESP32.
+        if (OVRInput.GetDown(OVRInput.Button.Start))
+            Simular(proximaSimulacaoNegada);
+
+#if UNITY_EDITOR
+        var teclado = UnityEngine.InputSystem.Keyboard.current;
+
+        if (teclado != null)
+        {
+            if (teclado.digit1Key.wasPressedThisFrame) Simular(false);
+            if (teclado.digit2Key.wasPressedThisFrame) Simular(true);
+        }
+#endif
+
         if (OVRInput.GetDown(OVRInput.Button.One))
             PosicionarManual();
 
@@ -487,6 +510,36 @@ public class ControleAcessoMR : MonoBehaviour
 
         raiz.gameObject.SetActive(true);
         modo = Modo.Manual;
+    }
+
+    // ---------- ESP32 e animacao ----------
+    void CriarFluxo()
+    {
+        var ancoras = new Transform[itens.Count];
+
+        for (int i = 0; i < itens.Count; i++)
+            ancoras[i] = itens[i].ancora;
+
+        fluxo = gameObject.AddComponent<FluxoAcesso>();
+        fluxo.Configurar(ajuste, ancoras, matBase, fonte);
+
+        esp = gameObject.AddComponent<EspCliente>();
+        esp.NovoEvento += OnEventoEsp;
+    }
+
+    void OnEventoEsp(string status)
+    {
+        ultimoEsp = status;
+        fluxo.Mostrar(status);
+    }
+
+    public void Simular(bool negado)
+    {
+        proximaSimulacaoNegada = !negado;
+        fluxo.Mostrar(negado ? "NAO CADASTRADO" : "ENTRADA ABERTA");
+
+        if (!raiz.gameObject.activeSelf)
+            Mostrar("Posicione as etiquetas (A ou QR) para ver a animacao");
     }
 
     // ---------- QR Code ----------
@@ -705,6 +758,11 @@ public class ControleAcessoMR : MonoBehaviour
         }
 
         sb.AppendLine("Permissao de cena: " + (TemPermissaoCena() ? "sim" : "NAO"));
+
+        sb.AppendLine(
+            "ESP32: " + (esp != null && esp.Conectado ? "conectado" : "desconectado")
+            + " | ultimo: " + ultimoEsp
+        );
         sb.AppendLine("Detectados: " + totalDetectados + " | tipo: " + ultimoTipo);
         sb.AppendLine("Ultimo texto: " + ultimoPayload);
 
@@ -732,6 +790,7 @@ public class ControleAcessoMR : MonoBehaviour
         sb.AppendLine("A=posicionar Y=salvar X=zerar B=painel");
         sb.AppendLine("Gat.dir=passo Gat.esq=trocar item");
         sb.AppendLine("Grip=texto +/- Clique dir=caixa Clique esq=apagar");
+        sb.AppendLine("Menu=simular cartao (autorizado/negado)");
 
         painel.text = sb.ToString();
     }

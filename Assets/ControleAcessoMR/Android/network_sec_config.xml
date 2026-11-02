@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Mesma regra padrao da Meta (sem http), com uma unica excecao:
+     o ESP32 do kit, que cria a propria rede e so fala http. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false"></base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.4.1</domain>
+    </domain-config>
+</network-security-config>
