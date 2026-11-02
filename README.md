@@ -3,9 +3,18 @@
 App de **realidade mista** para Meta Quest 3/3S que mostra, "ao vivo", como funciona um kit
 de controle de acesso por RFID montado para uma feira escolar.
 
-O visitante coloca o óculos, olha o kit real e vê etiquetas flutuando sobre cada peça,
-setas de luz percorrendo o caminho do sinal e um painel **ACESSO AUTORIZADO** (verde)
-ou **ACESSO NEGADO** (vermelho) quando alguém passa o cartão.
+O visitante coloca o óculos e vê, sobre a mesa, um **kit virtual em 3D** (cópia do kit
+real, 2x maior) ao lado do kit de verdade, no estilo da foto de referência: etiquetas
+"LEITOR RFID / ESP32 / LCD / SERVO", luz percorrendo o caminho do sinal, o LCD virtual
+escrevendo, a cancela subindo e um painel **ACESSO AUTORIZADO** (verde, cadeado aberto)
+ou **ACESSO NEGADO** (vermelho, cadeado fechado).
+
+A animação dispara de 3 jeitos:
+1. **Cartão virtual** (LIBERADO ou NEGADO) pego com a mão/controle e encostado no leitor virtual.
+2. **Cartão real** passado no kit real (o ESP32 avisa o óculos pelo Wi-Fi).
+3. **Simulação**: botões "SIMULAR AUTORIZADO/NEGADO" ou botão Menu (plano B).
+
+Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escritos LIBERADO / NEGADO.
 
 > **Feira:** última semana de novembro de 2026.
 > Dono do projeto: iniciante em Unity/Blender. Explicar tudo em português simples.
@@ -31,7 +40,13 @@ ao que acontece; nunca é obrigatório e nunca comanda o kit.
 
 | Pasta | O que tem |
 |---|---|
-| `Assets/ControleAcessoMR/ControleAcessoMR.cs` | Script principal do app (etiquetas, QR, calibração) |
+| `Assets/ControleAcessoMR/ControleAcessoMR.cs` | Comando do app: posiciona o kit (QR/manual), etiquetas, liga cartão virtual + ESP32 + simulação |
+| `Assets/ControleAcessoMR/KitVirtual.cs` | Kit 3D: detecta cartão no leitor, LCD, cancela, buzzer, devolve cartões |
+| `Assets/ControleAcessoMR/FluxoAcesso.cs` | Animação do sinal (pulso com rastro) + painel com cadeado; avisa o kit a cada etapa |
+| `Assets/ControleAcessoMR/EspCliente.cs` | Consulta `/evento` do ESP32 |
+| `Assets/ControleAcessoMR/KitVirtual.prefab` | Kit 3D pronto (gerado pelo menu ControleAcessoMR > Montar kit virtual) |
+| `Assets/Editor/` | Scripts de montagem (kit virtual, botões de simulação) |
+| `Modelos3D/*.blend` | Fontes do Blender (kit virtual, cadeado) |
 | `Assets/Scenes/SampleScene.unity` | Única cena do app |
 | `ESP32/ControleAcesso/ControleAcesso.ino` | Programa do ESP32 (Arduino IDE) |
 | `.agent-docs/` | Documentação técnica para agentes de IA |
@@ -75,14 +90,24 @@ Todos os GND ligados juntos.
 
 - Unity **6000.0.66f2**, URP, Android (Quest), IL2CPP, ARM64, Vulkan
 - Meta XR SDK **v207** (`com.meta.xr.sdk.all`): Camera Rig, Passthrough, MRUK
-- MRUK com rastreamento de **QR code**: o kit é localizado por um QR com o texto `CONTROLE_ACESSO_MR`
-- Calibração das etiquetas salva em PlayerPrefs (chaves `v2_*`)
+- MRUK com rastreamento de **QR code**: o kit virtual é colocado sobre o QR (texto `CONTROLE_ACESSO_MR`)
+  deitado na mesa; só a posição e o giro horizontal do QR são usados
+- Posição do kit em relação ao QR salva em PlayerPrefs (chaves `v3_*`)
+- Interaction SDK (rig OVR, locomoção desligada): cartões com hand grab + ray grab
 - `com.unity.pipeline` instalado para o agente controlar o Editor pela CLI `unity`
 
-### Controles atuais (Touch)
-Menu simula cartão (alterna autorizado/negado) · A posicionar · B painel · X zerar ajuste · Y salvar · gatilho dir. próximo passo ·
-gatilho esq. escolher item · grips tamanho do texto · clique analógico dir. tamanho da caixa ·
-clique analógico esq. apagar calibração · analógicos movem.
+### Kit virtual (detalhes técnicos)
+- Modelo em mm reais no Blender, 10,6 mil triângulos, 2x no Unity.
+- Exportar FBX **sem** `bake_space_transform` (com ele as peças em grupos chegam deslocadas).
+  O menu *Montar kit virtual* endireita o kit sozinho (protoboard deitada, leitor à esquerda,
+  cartões em -Z = lado da pessoa) e liga Read/Write no FBX (o LCD lê a geometria da tela).
+- Cancela virtual fecha sozinha 8 s depois de abrir pelo cartão virtual.
+
+### Controles do apresentador (Touch)
+Menu simula cartão (alterna liberado/negado) · A posicionar na frente · B painel de diagnóstico ·
+X zerar ajuste · Y salvar posição do kit · analógicos movem/giram o kit ·
+clique analógico dir. passo a passo (explicação de cada peça) · clique analógico esq. apagar posição salva.
+Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 
 ---
 
@@ -97,13 +122,18 @@ clique analógico esq. apagar calibração · analógicos movem.
 - [x] Simulação pelo botão Menu (teclas 1/2 no Editor) (testar sem o kit e plano B na feira)
 - [x] Uso com as mãos: painel "SIMULAR AUTORIZADO / NEGADO" (toque com o dedo ou raio do controle), rig do Interaction SDK com locomoção desligada. Recriar: menu ControleAcessoMR > Montar botoes de simulacao
 - [x] Cadeado 3D (aberto/fechado, 436 faces) no painel de resultado. Fonte: `Modelos3D/Cadeado.blend` → `Assets/ControleAcessoMR/Modelos/Cadeado.fbx`
-- [ ] Teste no óculos com o kit + ensaio, 1 semana antes da feira
+- [x] Kit virtual 3D igual à foto (RC522, ESP32, LCD, servo+cancela, protoboard, buzzer, fios, 2 cartões)
+- [x] Cartão virtual no leitor → luz, LCD escreve, cancela sobe, buzzer, painel (testado no Editor: liberado e negado)
+- [ ] Revisão geral pelo dono
+- [ ] Gerar APK e testar no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas
 - Público: visitantes leigos **e** o apresentador.
 - Mostrar casos **autorizado e negado**.
 - Textos no óculos **só em português**.
-- Gatilho da animação: **cartão real** (via ESP32), com simulação como plano B.
+- Kit **virtual + real juntos**, virtual **2x** maior, posicionado pelo **QR code**.
+- Gatilhos: cartão virtual, cartão real (via ESP32) e simulação como plano B.
+- O código do ESP32 não depende do óculos.
 
 ### Pendências do dono
 - Trocar as senhas fracas do ESP32 (`WIFI_SENHA` e `ADMIN_SENHA`) antes da feira.

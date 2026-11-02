@@ -10,9 +10,14 @@ public class FluxoAcesso : MonoBehaviour
 
     const float DuracaoTrecho = 0.45f;
     const float TempoPainel = 4f;
-    const float AlturaPainel = 0.28f;
-    const float TamanhoTexto = 0.0022f;
-    const float TamanhoPulso = 0.025f;
+    const float TamanhoPulso = 0.02f;
+
+    // Ajustados por quem configura (o kit virtual e maior que as etiquetas antigas).
+    public float alturaPainel = 0.28f;
+    public float tamanhoTexto = 0.0022f;
+
+    // Kit 3D que reage a cada etapa (LCD, cancela, buzzer). Opcional.
+    public KitVirtual kit;
     const float AlturaModeloCadeado = 1f;   // altura do modelo no Blender
     const float EspacoCadeado = 0.02f;
 
@@ -30,6 +35,7 @@ public class FluxoAcesso : MonoBehaviour
     Renderer fundo;
     Transform pulsoT;
     Renderer pulso;
+    TrailRenderer rastro;
     Coroutine atual;
 
     Transform cadeadoT;
@@ -45,6 +51,16 @@ public class FluxoAcesso : MonoBehaviour
         {
             pulso = NovaForma(PrimitiveType.Sphere, "PulsoSinal", pai, matBase, out pulsoT);
             pulsoT.localScale = Vector3.one * TamanhoPulso;
+
+            // Rastro de luz atras do pulso, como as setas brilhantes da foto.
+            rastro = pulsoT.gameObject.AddComponent<TrailRenderer>();
+            rastro.time = 0.35f;
+            rastro.startWidth = TamanhoPulso * 0.8f;
+            rastro.endWidth = 0f;
+            rastro.material = new Material(matBase);
+            rastro.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rastro.receiveShadows = false;
+
             pulsoT.gameObject.SetActive(false);
         }
 
@@ -55,7 +71,7 @@ public class FluxoAcesso : MonoBehaviour
         texto = go.AddComponent<TextMesh>();
         texto.font = fonte;
         texto.fontSize = 80;
-        texto.characterSize = TamanhoTexto;
+        texto.characterSize = tamanhoTexto;
         texto.anchor = TextAnchor.MiddleCenter;
         texto.alignment = TextAlignment.Center;
         texto.fontStyle = FontStyle.Bold;
@@ -157,6 +173,7 @@ public class FluxoAcesso : MonoBehaviour
         bool aberto = cor == Verde || cor == Amarelo;
 
         if (atual != null) StopCoroutine(atual);
+        if (kit != null) kit.Inicio(status);
         atual = StartCoroutine(Animar(caminho, cor, titulo, aberto));
         return true;
     }
@@ -168,26 +185,41 @@ public class FluxoAcesso : MonoBehaviour
         if (pulso != null)
         {
             pulso.material.color = cor;
+            rastro.material.color = cor;
+            pulsoT.position = ancoras[caminho[0]].position;
+            rastro.Clear();
             pulsoT.gameObject.SetActive(true);
+        }
 
-            for (int i = 0; i + 1 < caminho.Length; i++)
+        if (kit != null) kit.ChegouNo(caminho[0]);
+
+        for (int i = 0; i + 1 < caminho.Length; i++)
+        {
+            Transform a = ancoras[caminho[i]];
+            Transform b = ancoras[caminho[i + 1]];
+
+            for (float t = 0f; t < 1f; t += Time.deltaTime / DuracaoTrecho)
             {
-                Transform a = ancoras[caminho[i]];
-                Transform b = ancoras[caminho[i + 1]];
-
-                for (float t = 0f; t < 1f; t += Time.deltaTime / DuracaoTrecho)
+                if (pulso != null)
                 {
-                    pulsoT.position = Vector3.Lerp(a.position, b.position, Mathf.SmoothStep(0f, 1f, t));
+                    // Sobe num arco entre as pecas, como o sinal passando pelos fios.
+                    Vector3 p = Vector3.Lerp(a.position, b.position, Mathf.SmoothStep(0f, 1f, t));
+                    float arco = Vector3.Distance(a.position, b.position) * 0.25f;
+                    pulsoT.position = p + Vector3.up * arco * Mathf.Sin(t * Mathf.PI);
 
                     // Leve "respiracao" para parecer energia passando.
                     float s = TamanhoPulso * (1f + 0.3f * Mathf.Sin(t * Mathf.PI));
                     pulsoT.localScale = Vector3.one * s;
-                    yield return null;
                 }
+
+                yield return null;
             }
 
-            pulsoT.gameObject.SetActive(false);
+            if (kit != null) kit.ChegouNo(caminho[i + 1]);
         }
+
+        if (pulso != null) pulsoT.gameObject.SetActive(false);
+        if (kit != null) kit.Terminou();
 
         texto.text = titulo;
         texto.color = cor;
@@ -221,7 +253,7 @@ public class FluxoAcesso : MonoBehaviour
         foreach (var a in ancoras) centro += a.position;
         centro /= ancoras.Length;
 
-        Vector3 p = centro + Vector3.up * AlturaPainel;
+        Vector3 p = centro + Vector3.up * alturaPainel;
         painel.position = p;
 
         var cam = Camera.main;

@@ -57,7 +57,7 @@ public static class MontarBotoesSimulacao
 
         var rt = (RectTransform)painel.transform;
         rt.sizeDelta = new Vector2(320, 110);
-        rt.localScale = Vector3.one * 0.001f;   // 1 px = 1 mm
+        rt.localScale = Vector3.one * 0.0007f;  // painel de ~22 cm: cabe o dedo sem tampar o kit
         rt.position = new Vector3(0f, 1f, 0.5f);
 
         var fundo = painel.AddComponent<Image>();
@@ -105,7 +105,8 @@ public static class MontarBotoesSimulacao
 
         var tmp = rotulo.GetComponent<TextMeshProUGUI>();
         tmp.text = texto;
-        tmp.fontSize = 20;
+        tmp.fontSize = 17;
+        tmp.enableWordWrapping = false;
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;

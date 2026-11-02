@@ -3,30 +3,43 @@ using System.Text;
 using Meta.XR.MRUtilityKit;
 using UnityEngine;
 
+// Comanda o app: posiciona o kit virtual (pelo QR code ou na mao),
+// cria as etiquetas e liga cartao virtual, ESP32 real e simulacao
+// a mesma animacao (FluxoAcesso).
 public class ControleAcessoMR : MonoBehaviour
 {
-    class Item
+    class Etiqueta
     {
         public string titulo;
         public string explicacao;
-        public Vector3 padrao;
-        public Vector3 pos;
-        public Vector3 tamanho;
         public Transform ancora;
+        public Transform raiz;
         public TextMesh texto;
+        public Renderer borda;
+        public Transform bordaT;
         public Renderer fundo;
         public Transform fundoT;
-        public Renderer caixa;
-        public Transform caixaT;
         public Renderer linha;
         public Transform linhaT;
+        public Renderer ponto;
     }
 
     enum Modo { Aguardando, QR, Manual }
 
-    const float TamanhoBase = 0.001f;
+    const float TamanhoEtiqueta = 0.0011f;
     const float TamanhoPainel = 0.004f;
-    const float AlturaEtiqueta = 0.10f;
+    const float AlturaEtiqueta = 0.13f;
+    const float TempoFechamentoVirtual = 8f;
+
+    // Botoes na frente-direita do kit (os cartoes ficam na frente-esquerda).
+    const float DistanciaBotoes = 0.3f;
+    const float LadoBotoes = 0.25f;
+    const float AlturaBotoes = 0.04f;
+
+    static readonly Color Ciano = new Color(0.3f, 0.85f, 1f, 0.95f);
+    static readonly Color FundoEtiqueta = new Color(0.02f, 0.12f, 0.2f, 0.85f);
+    static readonly Color AmareloPasso = new Color(1f, 0.85f, 0.2f, 0.95f);
+    static readonly Color CinzaApagado = new Color(0.5f, 0.6f, 0.65f, 0.5f);
 
     [Header("QR Code")]
     public string payloadEsperado = "CONTROLE_ACESSO_MR";
@@ -43,11 +56,9 @@ public class ControleAcessoMR : MonoBehaviour
 
     [Header("Modelos 3D")]
     public GameObject modeloCadeado;
+    public GameObject kitVirtualPrefab;
 
-    const float DistanciaBotoes = 0.25f;
-    const float AlturaBotoes = 0.05f;
-
-    readonly List<Item> itens = new List<Item>();
+    readonly List<Etiqueta> etiquetas = new List<Etiqueta>();
     Font fonte;
     Material matBase;
     TextMesh painel;
@@ -55,9 +66,6 @@ public class ControleAcessoMR : MonoBehaviour
     MRUKTrackable qrAtual;
     Modo modo = Modo.Aguardando;
     int passo = -1;
-    int alvo = -1;
-    float escala = 1f;
-    float escalaCaixa = 1f;
     bool fundosPendentes = true;
     int totalDetectados;
     string ultimoTipo = "(nenhum)";
@@ -66,17 +74,12 @@ public class ControleAcessoMR : MonoBehaviour
     float mensagemAte;
     float proximaAtualizacao;
 
+    KitVirtual kit;
     EspCliente esp;
     FluxoAcesso fluxo;
     bool proximaSimulacaoNegada;
     string ultimoEsp = "(nenhum)";
-
-    static readonly Color FundoNormal = new Color(0f, 0f, 0f, 0.65f);
-    static readonly Color FundoAlvo = new Color(0.1f, 0.35f, 0.9f, 0.85f);
-    static readonly Color Ciano = new Color(0.2f, 0.8f, 1f, 0.22f);
-    static readonly Color Amarelo = new Color(1f, 0.9f, 0.1f, 0.40f);
-    static readonly Color Cinza = new Color(0.3f, 0.3f, 0.3f, 0.10f);
-    static readonly Color Azul = new Color(0.2f, 0.5f, 1f, 0.45f);
+    float fecharVirtualEm = -1f;
 
     void Start()
     {
@@ -87,16 +90,15 @@ public class ControleAcessoMR : MonoBehaviour
         if (sh == null) sh = Shader.Find("UI/Default");
         if (sh != null) matBase = new Material(sh);
 
-        CriarItensPadrao();
-        CarregarCalibracao();
-        CriarRaizEEtiquetas();
+        CriarRaizEKit();
+        CarregarPosicaoKit();
+        CriarEtiquetas();
         CriarFluxo();
 
         if (botoesSimulacao != null) botoesSimulacao.gameObject.SetActive(false);
 
         if (mostrarPainel) CriarPainel();
 
-        AplicarEscala();
         AplicarVisual();
 
         if (MRUK.Instance != null)
@@ -109,6 +111,7 @@ public class ControleAcessoMR : MonoBehaviour
     void OnDestroy()
     {
         if (esp != null) esp.NovoEvento -= OnEventoEsp;
+        if (kit != null) kit.CartaoLido -= OnCartaoVirtual;
 
         if (MRUK.Instance != null)
         {
@@ -117,127 +120,70 @@ public class ControleAcessoMR : MonoBehaviour
         }
     }
 
-    // POSICOES PROVISORIAS: a calibracao no oculos substitui estes valores.
-    void CriarItensPadrao()
+    // ---------- Kit virtual ----------
+    void CriarRaizEKit()
     {
-        Adicionar(
-            "1. RC522 (leitor RFID)",
-            "Le o cartao e\nenvia o codigo dele.",
-            -0.30f,
-            new Vector3(0.06f, 0.015f, 0.04f)
-        );
+        raiz = new GameObject("RaizControleAcesso").transform;
 
-        Adicionar(
-            "2. ESP32",
-            "Recebe o codigo e\ndecide se autoriza.",
-            -0.10f,
-            new Vector3(0.05f, 0.015f, 0.03f)
-        );
+        ajuste = new GameObject("Ajuste").transform;
+        ajuste.SetParent(raiz, false);
 
-        Adicionar(
-            "3. LCD",
-            "Mostra o resultado:\nautorizado ou negado.",
-            0.10f,
-            new Vector3(0.08f, 0.02f, 0.04f)
-        );
-
-        Adicionar(
-            "4. Servo (porta)",
-            "Abre a porta quando\no acesso e autorizado.",
-            0.30f,
-            new Vector3(0.04f, 0.03f, 0.03f)
-        );
-    }
-
-    void Adicionar(string titulo, string explicacao, float x, Vector3 tamanho)
-    {
-        var p = new Vector3(x, 0.04f, 0.04f);
-
-        itens.Add(new Item
+        if (kitVirtualPrefab != null)
         {
-            titulo = titulo,
-            explicacao = explicacao,
-            padrao = p,
-            pos = p,
-            tamanho = tamanho
-        });
-    }
-
-    // ---------- Calibracao salva ----------
-    void CarregarCalibracao()
-    {
-        if (PlayerPrefs.GetInt("v2_ok", 0) != 1) return;
-
-        escala = PlayerPrefs.GetFloat("v2_escala", 1f);
-        escalaCaixa = PlayerPrefs.GetFloat("v2_caixa", 1f);
-
-        for (int i = 0; i < itens.Count; i++)
-        {
-            itens[i].pos = new Vector3(
-                PlayerPrefs.GetFloat("v2_x" + i, itens[i].padrao.x),
-                PlayerPrefs.GetFloat("v2_y" + i, itens[i].padrao.y),
-                PlayerPrefs.GetFloat("v2_z" + i, itens[i].padrao.z)
-            );
+            var go = Instantiate(kitVirtualPrefab, ajuste);
+            go.name = "KitVirtual";
+            kit = go.GetComponent<KitVirtual>();
+            kit.CartaoLido += OnCartaoVirtual;
         }
-    }
-
-    void SalvarCalibracao()
-    {
-        var novas = new List<Vector3>();
-
-        foreach (var it in itens)
-            novas.Add(raiz.InverseTransformPoint(it.ancora.position));
-
-        ajuste.localPosition = Vector3.zero;
-        ajuste.localRotation = Quaternion.identity;
-
-        PlayerPrefs.SetInt("v2_ok", 1);
-        PlayerPrefs.SetFloat("v2_escala", escala);
-        PlayerPrefs.SetFloat("v2_caixa", escalaCaixa);
-
-        for (int i = 0; i < itens.Count; i++)
+        else
         {
-            itens[i].pos = novas[i];
-            itens[i].ancora.localPosition = novas[i];
-
-            PlayerPrefs.SetFloat("v2_x" + i, novas[i].x);
-            PlayerPrefs.SetFloat("v2_y" + i, novas[i].y);
-            PlayerPrefs.SetFloat("v2_z" + i, novas[i].z);
+            Debug.LogError("ControleAcessoMR: kitVirtualPrefab nao configurado");
         }
 
+        raiz.gameObject.SetActive(false);
+    }
+
+    // A posicao do kit em relacao ao QR fica salva (ajuste com os analogicos + Y).
+    void CarregarPosicaoKit()
+    {
+        if (PlayerPrefs.GetInt("v3_ok", 0) != 1) return;
+
+        ajuste.localPosition = new Vector3(
+            PlayerPrefs.GetFloat("v3_x", 0f),
+            PlayerPrefs.GetFloat("v3_y", 0f),
+            PlayerPrefs.GetFloat("v3_z", 0f)
+        );
+        ajuste.localRotation = Quaternion.Euler(0f, PlayerPrefs.GetFloat("v3_giro", 0f), 0f);
+    }
+
+    void SalvarPosicaoKit()
+    {
+        PlayerPrefs.SetInt("v3_ok", 1);
+        PlayerPrefs.SetFloat("v3_x", ajuste.localPosition.x);
+        PlayerPrefs.SetFloat("v3_y", ajuste.localPosition.y);
+        PlayerPrefs.SetFloat("v3_z", ajuste.localPosition.z);
+        PlayerPrefs.SetFloat("v3_giro", ajuste.localEulerAngles.y);
         PlayerPrefs.Save();
+
         PosicionarBotoes();
-        Mostrar("Calibracao salva");
+        Mostrar("Posicao do kit salva");
     }
 
-    void ApagarCalibracao()
+    void ApagarPosicaoKit()
     {
-        PlayerPrefs.DeleteKey("v2_ok");
-        PlayerPrefs.DeleteKey("v2_escala");
-        PlayerPrefs.DeleteKey("v2_caixa");
-
-        for (int i = 0; i < itens.Count; i++)
-        {
-            PlayerPrefs.DeleteKey("v2_x" + i);
-            PlayerPrefs.DeleteKey("v2_y" + i);
-            PlayerPrefs.DeleteKey("v2_z" + i);
-        }
+        foreach (var k in new[] { "v3_ok", "v3_x", "v3_y", "v3_z", "v3_giro" })
+            PlayerPrefs.DeleteKey(k);
 
         PlayerPrefs.Save();
+        ZerarAjuste();
+        Mostrar("Posicao salva apagada");
+    }
 
+    void ZerarAjuste()
+    {
         ajuste.localPosition = Vector3.zero;
         ajuste.localRotation = Quaternion.identity;
-        escala = 1f;
-        escalaCaixa = 1f;
-
-        foreach (var it in itens)
-        {
-            it.pos = it.padrao;
-            it.ancora.localPosition = it.padrao;
-        }
-
-        AplicarEscala();
-        Mostrar("Calibracao apagada");
+        PosicionarBotoes();
     }
 
     void Mostrar(string texto)
@@ -251,63 +197,74 @@ public class ControleAcessoMR : MonoBehaviour
     {
         LerControles();
         AtualizarPainel();
+
+        if (fecharVirtualEm > 0f && Time.time > fecharVirtualEm)
+        {
+            fecharVirtualEm = -1f;
+            if (kit != null && kit.CancelaAberta) fluxo.Mostrar("FECHAMENTO AUTOMATICO");
+        }
     }
 
     void LateUpdate()
     {
-        if (qrAtual != null)
-        {
-            raiz.SetPositionAndRotation(
-                qrAtual.transform.position,
-                qrAtual.transform.rotation
-            );
-        }
+        if (qrAtual != null) AlinharAoQR(qrAtual.transform);
 
         if (!raiz.gameObject.activeSelf) return;
         if (cabeca == null) cabeca = Cabeca();
 
-        foreach (var it in itens)
+        foreach (var e in etiquetas)
         {
-            Vector3 a = it.ancora.position;
+            Vector3 a = e.ancora.position;
             Vector3 p = a + Vector3.up * AlturaEtiqueta;
 
-            it.texto.transform.position = p;
+            e.raiz.position = p;
 
             if (cabeca != null)
             {
                 Vector3 dirOlho = p - cabeca.position;
 
                 if (dirOlho.sqrMagnitude > 0.0001f)
-                {
-                    it.texto.transform.rotation = Quaternion.LookRotation(
-                        dirOlho,
-                        Vector3.up
-                    );
-                }
+                    e.raiz.rotation = Quaternion.LookRotation(dirOlho, Vector3.up);
             }
 
-            if (it.linhaT != null)
+            if (e.linhaT != null)
             {
                 Vector3 d = p - a;
                 float len = d.magnitude;
 
                 if (len > 0.001f)
                 {
-                    it.linhaT.position = a + d * 0.5f;
-                    it.linhaT.rotation = Quaternion.LookRotation(d, Vector3.up);
-                    it.linhaT.localScale = new Vector3(0.003f, 0.003f, len);
+                    e.linhaT.position = a + d * 0.5f;
+                    e.linhaT.rotation = Quaternion.LookRotation(d, Vector3.up);
+                    e.linhaT.localScale = new Vector3(0.0025f, 0.0025f, len);
                 }
+
+                e.ponto.transform.position = a;
             }
         }
 
         if (fundosPendentes) AjustarFundos();
     }
 
-    // ---------- Controles ----------
+    // O QR fica deitado na mesa. So usa a posicao dele e o "giro" na horizontal,
+    // assim o kit fica sempre reto sobre a mesa, qualquer que seja o eixo do QR.
+    void AlinharAoQR(Transform qr)
+    {
+        Vector3 direita = Vector3.ProjectOnPlane(qr.right, Vector3.up);
+
+        if (direita.sqrMagnitude < 0.0001f) return;
+
+        // O kit e montado com os cartoes em -Z: o +Z da raiz aponta para longe de
+        // quem le o QR, e o leitor fica a esquerda dessa pessoa.
+        Vector3 longe = Vector3.Cross(direita.normalized, Vector3.up);
+        raiz.SetPositionAndRotation(qr.position, Quaternion.LookRotation(longe, Vector3.up));
+    }
+
+    // ---------- Controles do apresentador ----------
+    // Gatilhos e grips ficam livres para pegar os cartoes e apertar botoes.
     void LerControles()
     {
-        // Botao Menu (controle esquerdo): simula o cartao,
-        // alternando autorizado e negado. Plano B sem o ESP32.
+        // Menu (controle esquerdo): simula um cartao, alternando liberado e negado.
         if (OVRInput.GetDown(OVRInput.Button.Start))
             Simular(proximaSimulacaoNegada);
 
@@ -328,31 +285,16 @@ public class ControleAcessoMR : MonoBehaviour
             painel.gameObject.SetActive(!painel.gameObject.activeSelf);
 
         if (OVRInput.GetDown(OVRInput.Button.Three))
-        {
-            ajuste.localPosition = Vector3.zero;
-            ajuste.localRotation = Quaternion.identity;
-        }
+            ZerarAjuste();
 
         if (OVRInput.GetDown(OVRInput.Button.Four))
-            SalvarCalibracao();
-
-        if (OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger))
-            ProximoPasso();
-
-        if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger))
-            ProximoAlvo();
-
-        if (OVRInput.GetDown(OVRInput.Button.SecondaryHandTrigger))
-            MudarEscala(1.25f);
-
-        if (OVRInput.GetDown(OVRInput.Button.PrimaryHandTrigger))
-            MudarEscala(0.8f);
+            SalvarPosicaoKit();
 
         if (OVRInput.GetDown(OVRInput.Button.SecondaryThumbstick))
-            MudarCaixa();
+            ProximoPasso();
 
         if (OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick))
-            ApagarCalibracao();
+            ApagarPosicaoKit();
 
         if (modo == Modo.Aguardando) return;
 
@@ -378,19 +320,11 @@ public class ControleAcessoMR : MonoBehaviour
             Vector3.up * Zona(esq.y)
         ) * velocidadeMovimento * dt;
 
-        if (alvo >= 0)
-        {
-            itens[alvo].ancora.position += d;
-        }
-        else
+        if (d.sqrMagnitude > 0f || Zona(esq.x) != 0f)
         {
             ajuste.position += d;
-
-            ajuste.Rotate(
-                Vector3.up,
-                Zona(esq.x) * velocidadeRotacao * dt,
-                Space.World
-            );
+            ajuste.Rotate(Vector3.up, Zona(esq.x) * velocidadeRotacao * dt, Space.World);
+            PosicionarBotoes();
         }
     }
 
@@ -403,88 +337,30 @@ public class ControleAcessoMR : MonoBehaviour
     {
         passo++;
 
-        if (passo >= itens.Count)
+        if (passo >= etiquetas.Count)
             passo = -1;
 
         AplicarVisual();
     }
 
-    void ProximoAlvo()
-    {
-        alvo++;
-
-        if (alvo >= itens.Count)
-            alvo = -1;
-
-        AplicarVisual();
-    }
-
-    void MudarEscala(float fator)
-    {
-        escala = Mathf.Clamp(escala * fator, 0.3f, 5f);
-
-        AplicarEscala();
-        AplicarVisual();
-    }
-
-    void MudarCaixa()
-    {
-        escalaCaixa *= 1.25f;
-
-        if (escalaCaixa > 5f)
-            escalaCaixa = 0.4f;
-
-        AplicarEscala();
-    }
-
-    void AplicarEscala()
-    {
-        foreach (var it in itens)
-        {
-            if (it.caixaT != null)
-                it.caixaT.localScale = it.tamanho * escalaCaixa;
-        }
-
-        fundosPendentes = true;
-    }
-
     void AplicarVisual()
     {
-        for (int i = 0; i < itens.Count; i++)
+        for (int i = 0; i < etiquetas.Count; i++)
         {
-            var it = itens[i];
+            var e = etiquetas[i];
 
-            bool ativo = (passo == i);
-            bool semPasso = (passo < 0);
+            bool ativo = passo == i;
+            bool semPasso = passo < 0;
 
-            it.texto.color = semPasso
-                ? Color.white
-                : (ativo ? Color.yellow : new Color(0.6f, 0.6f, 0.6f));
+            // No passo a passo, a etiqueta da vez mostra a explicacao.
+            e.texto.text = ativo ? e.titulo + "\n" + e.explicacao : e.titulo;
+            e.texto.color = semPasso || ativo ? Color.white : CinzaApagado;
 
-            it.texto.characterSize = TamanhoBase * escala * (ativo ? 1.3f : 1f);
+            Color cor = semPasso ? Ciano : (ativo ? AmareloPasso : CinzaApagado);
 
-            if (it.fundo != null)
-                it.fundo.material.color = (i == alvo) ? FundoAlvo : FundoNormal;
-
-            if (it.caixa != null)
-            {
-                Color cc = semPasso ? Ciano : (ativo ? Amarelo : Cinza);
-
-                it.caixa.material.color = (i == alvo) ? Azul : cc;
-            }
-
-            if (it.linha != null)
-            {
-                Color lc = semPasso
-                    ? new Color(0.2f, 0.8f, 1f, 0.8f)
-                    : (
-                        ativo
-                            ? new Color(1f, 0.9f, 0.1f, 0.9f)
-                            : new Color(0.4f, 0.4f, 0.4f, 0.3f)
-                    );
-
-                it.linha.material.color = lc;
-            }
+            if (e.borda != null) e.borda.material.color = cor;
+            if (e.linha != null) e.linha.material.color = cor;
+            if (e.ponto != null) e.ponto.material.color = cor;
         }
 
         fundosPendentes = true;
@@ -500,6 +376,7 @@ public class ControleAcessoMR : MonoBehaviour
         return Camera.main != null ? Camera.main.transform : null;
     }
 
+    // Plano B sem QR: kit na frente da pessoa, mais ou menos na altura de uma mesa.
     void PosicionarManual()
     {
         if (cabeca == null) cabeca = Cabeca();
@@ -514,68 +391,96 @@ public class ControleAcessoMR : MonoBehaviour
 
         qrAtual = null;
 
-        raiz.position = cabeca.position + frente * 0.8f + Vector3.down * 0.25f;
+        raiz.position = cabeca.position + frente * 0.6f + Vector3.down * 0.45f;
         raiz.rotation = Quaternion.LookRotation(frente, Vector3.up);
 
-        ajuste.localPosition = Vector3.zero;
-        ajuste.localRotation = Quaternion.identity;
+        Mostrar(raiz.gameObject.activeSelf ? "Kit reposicionado" : "Kit posicionado");
+        Ativar(Modo.Manual);
+    }
 
+    void Ativar(Modo novo)
+    {
+        bool primeiraVez = !raiz.gameObject.activeSelf;
+
+        modo = novo;
         raiz.gameObject.SetActive(true);
-        modo = Modo.Manual;
+
+        if (primeiraVez && kit != null) kit.DevolverCartoes();
+
         PosicionarBotoes();
     }
 
-    // Painel de botoes fica parado na frente do kit, virado para a pessoa.
+    // Painel de botoes fica parado ao lado do kit, virado para a pessoa.
     // Nao segue a cabeca, para nao fugir do dedo na hora de apertar.
     void PosicionarBotoes()
     {
-        if (botoesSimulacao == null) return;
+        if (botoesSimulacao == null || kit == null || !raiz.gameObject.activeSelf) return;
         if (cabeca == null) cabeca = Cabeca();
         if (cabeca == null) return;
 
         Vector3 centro = Vector3.zero;
-        foreach (var it in itens) centro += it.ancora.position;
-        centro /= itens.Count;
+        foreach (var a in kit.Ancoras) centro += a.position;
+        centro /= kit.Ancoras.Length;
 
-        Vector3 paraCabeca = Vector3.ProjectOnPlane(cabeca.position - centro, Vector3.up);
-        if (paraCabeca.sqrMagnitude < 0.01f) paraCabeca = -Vector3.forward;
-        paraCabeca.Normalize();
+        // O +Z do kit aponta para longe de quem esta na frente dele.
+        Vector3 paraPessoa = Vector3.ProjectOnPlane(-ajuste.forward, Vector3.up).normalized;
+        Vector3 direitaPessoa = Vector3.Cross(paraPessoa, Vector3.up);
 
-        Vector3 p = centro + paraCabeca * DistanciaBotoes + Vector3.up * AlturaBotoes;
+        Vector3 p = centro + direitaPessoa * LadoBotoes + paraPessoa * DistanciaBotoes + Vector3.up * AlturaBotoes;
 
         botoesSimulacao.position = p;
         botoesSimulacao.rotation = Quaternion.LookRotation(p - cabeca.position, Vector3.up);
         botoesSimulacao.gameObject.SetActive(true);
     }
 
-    // ---------- ESP32 e animacao ----------
+    // ---------- ESP32, cartao virtual e animacao ----------
     void CriarFluxo()
     {
-        var ancoras = new Transform[itens.Count];
-
-        for (int i = 0; i < itens.Count; i++)
-            ancoras[i] = itens[i].ancora;
-
         fluxo = gameObject.AddComponent<FluxoAcesso>();
+        fluxo.alturaPainel = 0.3f;
+        fluxo.tamanhoTexto = 0.0026f;
+        fluxo.kit = kit;
+
+        Transform[] ancoras = kit != null ? kit.Ancoras : new Transform[0];
         fluxo.Configurar(ajuste, ancoras, matBase, fonte, modeloCadeado);
 
         esp = gameObject.AddComponent<EspCliente>();
         esp.NovoEvento += OnEventoEsp;
     }
 
+    // Evento do kit REAL (cartao passado no leitor de verdade).
     void OnEventoEsp(string status)
     {
         ultimoEsp = status;
+        fecharVirtualEm = -1f;   // quem manda na cancela agora e o ESP32
         fluxo.Mostrar(status);
     }
 
+    // Cartao VIRTUAL encostado no leitor virtual: mesma logica do ESP32.
+    void OnCartaoVirtual(bool liberado)
+    {
+        string status;
+
+        if (!liberado) status = "NAO CADASTRADO";
+        else if (kit.CancelaAberta) status = "ENTRADA FECHADA";
+        else status = "ENTRADA ABERTA";
+
+        fecharVirtualEm = status == "ENTRADA ABERTA" ? Time.time + TempoFechamentoVirtual : -1f;
+        fluxo.Mostrar(status);
+    }
+
+    // Botoes "Simular" e botao Menu.
     public void Simular(bool negado)
     {
         proximaSimulacaoNegada = !negado;
-        fluxo.Mostrar(negado ? "NAO CADASTRADO" : "ENTRADA ABERTA");
 
         if (!raiz.gameObject.activeSelf)
-            Mostrar("Posicione as etiquetas (A ou QR) para ver a animacao");
+        {
+            Mostrar("Posicione o kit (QR ou botao A) para ver a animacao");
+            return;
+        }
+
+        if (kit != null) OnCartaoVirtual(!negado);
     }
 
     // ---------- QR Code ----------
@@ -597,15 +502,8 @@ public class ControleAcessoMR : MonoBehaviour
             return;
 
         qrAtual = trackable;
-
-        raiz.SetPositionAndRotation(
-            trackable.transform.position,
-            trackable.transform.rotation
-        );
-
-        raiz.gameObject.SetActive(true);
-        modo = Modo.QR;
-        PosicionarBotoes();
+        AlinharAoQR(trackable.transform);
+        Ativar(Modo.QR);
     }
 
     void OnTrackableRemoved(MRUKTrackable trackable)
@@ -617,13 +515,8 @@ public class ControleAcessoMR : MonoBehaviour
         }
     }
 
-    // ---------- Criacao dos objetos ----------
-    Renderer NovaForma(
-        PrimitiveType tipo,
-        string nome,
-        Transform pai,
-        out Transform t
-    )
+    // ---------- Etiquetas (estilo da foto de referencia) ----------
+    Renderer NovaForma(PrimitiveType tipo, string nome, Transform pai, out Transform t)
     {
         var go = GameObject.CreatePrimitive(tipo);
 
@@ -642,68 +535,58 @@ public class ControleAcessoMR : MonoBehaviour
         return r;
     }
 
-    void CriarRaizEEtiquetas()
+    void CriarEtiquetas()
     {
-        raiz = new GameObject("RaizControleAcesso").transform;
+        if (kit == null) return;
 
-        ajuste = new GameObject("Ajuste").transform;
-        ajuste.SetParent(raiz, false);
-
-        foreach (var it in itens)
+        string[] titulos = { "LEITOR RFID", "ESP32", "LCD", "SERVO" };
+        string[] explicacoes =
         {
-            var a = new GameObject("Ancora_" + it.titulo).transform;
+            "Le o cartao e\nenvia o codigo dele.",
+            "Recebe o codigo e\ndecide se autoriza.",
+            "Mostra o resultado:\nliberado ou negado.",
+            "Abre a cancela quando\no acesso e liberado."
+        };
 
-            a.SetParent(ajuste, false);
-            a.localPosition = it.pos;
-            it.ancora = a;
+        for (int i = 0; i < titulos.Length; i++)
+        {
+            var e = new Etiqueta
+            {
+                titulo = titulos[i],
+                explicacao = explicacoes[i],
+                ancora = kit.Ancoras[i]
+            };
 
-            var go = new GameObject("Etiqueta_" + it.titulo);
-
+            var go = new GameObject("Etiqueta_" + e.titulo);
             go.transform.SetParent(ajuste, false);
+            e.raiz = go.transform;
 
-            it.texto = ConfigurarTexto(
-                go,
-                it.titulo + "\n" + it.explicacao,
-                TamanhoBase * escala
-            );
+            e.texto = ConfigurarTexto(go, e.titulo, TamanhoEtiqueta);
+            e.texto.fontStyle = FontStyle.Bold;
 
             if (matBase != null)
             {
-                it.fundo = NovaForma(
-                    PrimitiveType.Quad,
-                    "Fundo",
-                    go.transform,
-                    out it.fundoT
-                );
-
-                it.caixa = NovaForma(
-                    PrimitiveType.Cube,
-                    "Caixa",
-                    a,
-                    out it.caixaT
-                );
-
-                it.linha = NovaForma(
-                    PrimitiveType.Cube,
-                    "Linha",
-                    ajuste,
-                    out it.linhaT
-                );
+                e.fundo = NovaForma(PrimitiveType.Quad, "Fundo", go.transform, out e.fundoT);
+                e.fundo.material.color = FundoEtiqueta;
+                e.borda = NovaForma(PrimitiveType.Quad, "Borda", go.transform, out e.bordaT);
+                e.linha = NovaForma(PrimitiveType.Cube, "Linha", ajuste, out e.linhaT);
+                e.ponto = NovaForma(PrimitiveType.Sphere, "Ponto", ajuste, out var pontoT);
+                pontoT.localScale = Vector3.one * 0.012f;
             }
-        }
 
-        raiz.gameObject.SetActive(false);
+            etiquetas.Add(e);
+        }
     }
 
     void AjustarFundos()
     {
         bool tudoPronto = true;
 
-        foreach (var it in itens)
+        foreach (var e in etiquetas)
         {
-            if (it.fundoT == null) continue;
+            if (e.fundoT == null) continue;
 
-            Bounds b = it.texto.GetComponent<MeshRenderer>().localBounds;
+            Bounds b = e.texto.GetComponent<MeshRenderer>().localBounds;
 
             if (b.size.x < 0.001f)
             {
@@ -711,17 +594,14 @@ public class ControleAcessoMR : MonoBehaviour
                 continue;
             }
 
-            it.fundoT.localPosition = new Vector3(
-                b.center.x,
-                b.center.y,
-                0.002f
-            );
+            Vector3 tam = new Vector3(b.size.x + 0.035f, b.size.y + 0.02f, 1f);
 
-            it.fundoT.localScale = new Vector3(
-                b.size.x + 0.03f,
-                b.size.y + 0.02f,
-                1f
-            );
+            e.fundoT.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
+            e.fundoT.localScale = tam;
+
+            // Borda = mesmo retangulo um pouco maior, atras do fundo.
+            e.bordaT.localPosition = new Vector3(b.center.x, b.center.y, 0.003f);
+            e.bordaT.localScale = tam + new Vector3(0.005f, 0.005f, 0f);
         }
 
         if (tudoPronto)
@@ -806,12 +686,7 @@ public class ControleAcessoMR : MonoBehaviour
         sb.AppendLine(
             "Modo: " + modo
             + " | passo: " + (passo < 0 ? "todos" : (passo + 1).ToString())
-        );
-
-        sb.AppendLine(
-            "Mover: " + (alvo < 0 ? "grupo todo" : "item " + (alvo + 1))
-            + " | texto x" + escala.ToString("0.0")
-            + " | caixa x" + escalaCaixa.ToString("0.0")
+            + " | cancela: " + (kit != null && kit.CancelaAberta ? "aberta" : "fechada")
         );
 
         if (qrAtual != null)
@@ -825,9 +700,8 @@ public class ControleAcessoMR : MonoBehaviour
             sb.AppendLine(">>> " + mensagem);
 
         sb.AppendLine("A=posicionar Y=salvar X=zerar B=painel");
-        sb.AppendLine("Gat.dir=passo Gat.esq=trocar item");
-        sb.AppendLine("Grip=texto +/- Clique dir=caixa Clique esq=apagar");
-        sb.AppendLine("Menu=simular cartao (autorizado/negado)");
+        sb.AppendLine("Analogicos=mover kit  Clique dir=passo a passo");
+        sb.AppendLine("Clique esq=apagar posicao  Menu=simular cartao");
 
         painel.text = sb.ToString();
     }
