@@ -31,8 +31,18 @@ public class ControleAcessoMR : MonoBehaviour
     const float AlturaEtiqueta = 0.13f;
     const float TempoFechamentoVirtual = 8f;
 
-    // O kit virtual flutua acima da mesa: o real fica embaixo, a vista e ao alcance da mao.
-    const float AlturaFlutuando = 0.35f;
+    // Olhando para baixo a pessoa ve a mesa com o kit real; olhando para a frente,
+    // ve o kit virtual um pouco abaixo da linha dos olhos, inclinado como uma vitrine
+    // (deitado na altura dos olhos ele apareceria de lado, como uma linha).
+    const float AbaixoDosOlhos = 0.2f;
+    const float InclinacaoKit = 30f;
+    const float AlemDoQR = 0.1f;          // um pouco para o fundo; cartoes ao alcance da mao
+    const float DistanciaManual = 0.7f;
+
+    // A altura acompanha cada visitante (crianca ou adulto), devagar e so quando
+    // a diferenca e grande, para o kit nao "pular" a cada movimento da cabeca.
+    const float ZonaMortaAltura = 0.12f;
+    const float VelocidadeAltura = 0.15f;  // metros por segundo
     // Quase transparente: o kit real, embaixo, precisa continuar visivel.
     static readonly Color CorBandeja = new Color(0.3f, 0.85f, 1f, 0.04f);
     static readonly Color CorBordaBandeja = new Color(0.3f, 0.85f, 1f, 0.7f);
@@ -40,7 +50,7 @@ public class ControleAcessoMR : MonoBehaviour
     // Botoes na frente-direita do kit (os cartoes ficam na frente-esquerda).
     const float DistanciaBotoes = 0.3f;
     const float LadoBotoes = 0.25f;
-    const float AlturaBotoes = 0.04f;
+    const float AlturaBotoes = -0.1f;   // o kit inclinado desce na frente; botoes acompanham
 
     static readonly Color Ciano = new Color(0.3f, 0.85f, 1f, 0.95f);
     static readonly Color FundoEtiqueta = new Color(0.02f, 0.12f, 0.2f, 0.85f);
@@ -86,6 +96,7 @@ public class ControleAcessoMR : MonoBehaviour
     bool proximaSimulacaoNegada;
     string ultimoEsp = "(nenhum)";
     float fecharVirtualEm = -1f;
+    float alturaKit = float.NaN;
 
     void Start()
     {
@@ -260,6 +271,8 @@ public class ControleAcessoMR : MonoBehaviour
         if (!raiz.gameObject.activeSelf) return;
         if (cabeca == null) cabeca = Cabeca();
 
+        AtualizarAltura();
+
         foreach (var e in etiquetas)
         {
             Vector3 a = e.ancora.position;
@@ -305,7 +318,37 @@ public class ControleAcessoMR : MonoBehaviour
         // O kit e montado com os cartoes em -Z: o +Z da raiz aponta para longe de
         // quem le o QR, e o leitor fica a esquerda dessa pessoa.
         Vector3 longe = Vector3.Cross(direita.normalized, Vector3.up);
-        raiz.SetPositionAndRotation(qr.position + Vector3.up * AlturaFlutuando, Quaternion.LookRotation(longe, Vector3.up));
+        Vector3 p = qr.position + longe * AlemDoQR;
+        p.y = AlturaAlvo(qr.position.y + 0.6f);
+
+        raiz.SetPositionAndRotation(p, Inclinado(longe));
+    }
+
+    // Fundo do kit levantado, frente (cartoes) mais perto e mais baixa.
+    static Quaternion Inclinado(Vector3 longe)
+    {
+        return Quaternion.LookRotation(longe, Vector3.up) * Quaternion.Euler(-InclinacaoKit, 0f, 0f);
+    }
+
+    float AlturaAlvo(float semCabeca)
+    {
+        if (!float.IsNaN(alturaKit)) return alturaKit;
+        return cabeca != null ? cabeca.position.y - AbaixoDosOlhos : semCabeca;
+    }
+
+    void AtualizarAltura()
+    {
+        if (cabeca == null) return;
+
+        float alvo = cabeca.position.y - AbaixoDosOlhos;
+
+        if (float.IsNaN(alturaKit))
+            alturaKit = alvo;
+        else if (Mathf.Abs(alvo - alturaKit) > ZonaMortaAltura)
+            alturaKit = Mathf.MoveTowards(alturaKit, alvo, VelocidadeAltura * Time.deltaTime);
+
+        Vector3 p = raiz.position;
+        raiz.position = new Vector3(p.x, alturaKit, p.z);
     }
 
     // ---------- Controles do apresentador ----------
@@ -424,8 +467,7 @@ public class ControleAcessoMR : MonoBehaviour
         return Camera.main != null ? Camera.main.transform : null;
     }
 
-    // Plano B sem QR: kit na frente da pessoa, flutuando na altura do peito
-    // (mais ou menos uma mesa + AlturaFlutuando).
+    // Plano B sem QR: kit na frente da pessoa, um pouco abaixo da linha dos olhos.
     void PosicionarManual()
     {
         if (cabeca == null) cabeca = Cabeca();
@@ -440,8 +482,9 @@ public class ControleAcessoMR : MonoBehaviour
 
         qrAtual = null;
 
-        raiz.position = cabeca.position + frente * 0.6f + Vector3.down * (0.45f - AlturaFlutuando * 0.5f);
-        raiz.rotation = Quaternion.LookRotation(frente, Vector3.up);
+        alturaKit = cabeca.position.y - AbaixoDosOlhos;
+        raiz.position = new Vector3(0f, alturaKit, 0f) + Vector3.ProjectOnPlane(cabeca.position, Vector3.up) + frente * DistanciaManual;
+        raiz.rotation = Inclinado(frente);
 
         Mostrar(raiz.gameObject.activeSelf ? "Kit reposicionado" : "Kit posicionado");
         Ativar(Modo.Manual);
@@ -477,6 +520,9 @@ public class ControleAcessoMR : MonoBehaviour
 
         Vector3 p = centro + direitaPessoa * LadoBotoes + paraPessoa * DistanciaBotoes + Vector3.up * AlturaBotoes;
 
+        // Filho do kit: acompanha quando a altura se ajusta ao visitante.
+        if (botoesSimulacao.parent != ajuste) botoesSimulacao.SetParent(ajuste, true);
+
         botoesSimulacao.position = p;
         botoesSimulacao.rotation = Quaternion.LookRotation(p - cabeca.position, Vector3.up);
         botoesSimulacao.gameObject.SetActive(true);
@@ -486,7 +532,7 @@ public class ControleAcessoMR : MonoBehaviour
     void CriarFluxo()
     {
         fluxo = gameObject.AddComponent<FluxoAcesso>();
-        fluxo.alturaPainel = 0.3f;
+        fluxo.alturaPainel = 0.22f;   // kit ja esta perto da linha dos olhos
         fluxo.tamanhoTexto = 0.0026f;
         fluxo.kit = kit;
 

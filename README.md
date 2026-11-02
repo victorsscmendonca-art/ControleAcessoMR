@@ -90,8 +90,9 @@ Todos os GND ligados juntos.
 
 - Unity **6000.0.66f2**, URP, Android (Quest), IL2CPP, ARM64, Vulkan
 - Meta XR SDK **v207** (`com.meta.xr.sdk.all`): Camera Rig, Passthrough, MRUK
-- MRUK com rastreamento de **QR code**: o kit virtual flutua 35 cm acima do QR (texto `CONTROLE_ACESSO_MR`),
-  com um contorno holográfico embaixo; o kit real fica na mesa, visível por baixo
+- MRUK com rastreamento de **QR code** (texto `CONTROLE_ACESSO_MR`, deitado na mesa): o kit virtual aparece
+  na frente da pessoa, ~20 cm abaixo da linha dos olhos, inclinado 30° como vitrine, com contorno
+  holográfico; a altura acompanha cada visitante devagar. Olhando para baixo vê-se a mesa com o kit real
   deitado na mesa; só a posição e o giro horizontal do QR são usados
 - Posição do kit em relação ao QR salva em PlayerPrefs (chaves `v3_*`)
 - Interaction SDK (rig OVR, locomoção desligada): cartões com hand grab + ray grab
@@ -132,7 +133,7 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - Público: visitantes leigos **e** o apresentador.
 - Mostrar casos **autorizado e negado**.
 - Textos no óculos **só em português**.
-- Kit **virtual + real juntos**, virtual **2x** maior, posicionado pelo **QR code** e **flutuando ~35 cm acima da mesa** (o real fica embaixo, a pessoa mexe nele pela câmera).
+- Kit **virtual + real juntos**, virtual **2x** maior, posicionado pelo **QR code**, **na altura dos olhos, à frente** (olhar para baixo = mesa com o kit real; olhar para a frente = kit virtual).
 - Gatilhos: cartão virtual, cartão real (via ESP32) e simulação como plano B.
 - O código do ESP32 não depende do óculos.
 
