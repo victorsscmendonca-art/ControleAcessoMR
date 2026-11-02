@@ -80,7 +80,7 @@ Todos os GND ligados juntos.
 - `com.unity.pipeline` instalado para o agente controlar o Editor pela CLI `unity`
 
 ### Controles atuais (Touch)
-A posicionar · B painel · X zerar ajuste · Y salvar · gatilho dir. próximo passo ·
+Menu simula cartão (alterna autorizado/negado) · A posicionar · B painel · X zerar ajuste · Y salvar · gatilho dir. próximo passo ·
 gatilho esq. escolher item · grips tamanho do texto · clique analógico dir. tamanho da caixa ·
 clique analógico esq. apagar calibração · analógicos movem.
 
@@ -91,10 +91,10 @@ clique analógico esq. apagar calibração · analógicos movem.
 - [x] Backup git + repositório privado no GitHub
 - [x] Ferramentas instaladas (plugins Meta VR, Unity, Design; Blender + MCP; skills)
 - [x] ESP32: rota `/evento` adicionada (**ainda não gravado/testado no hardware**)
-- [ ] Liberar http **só** para `192.168.4.1` no Android (a config padrão da Meta bloqueia cleartext)
-- [ ] Script que consulta `/evento` e não trava se o ESP32 sumir (mostra "ESP32 desconectado")
-- [ ] Animação: setas de luz leitor → ESP32 → LCD → servo + painel verde/vermelho
-- [ ] Botões "Simular autorizado/negado" (testar sem o kit e plano B na feira)
+- [x] Liberar http **só** para `192.168.4.1` no Android (a config padrão da Meta bloqueia cleartext)
+- [x] Script que consulta `/evento` e não trava se o ESP32 sumir (mostra "ESP32 desconectado")
+- [x] Animação: setas de luz leitor → ESP32 → LCD → servo + painel verde/vermelho
+- [x] Simulação pelo botão Menu (teclas 1/2 no Editor); botões flutuantes para as mãos ainda faltam — (testar sem o kit e plano B na feira)
 - [ ] Uso com as mãos (Interaction SDK) para visitantes; controles continuam para o apresentador
 - [ ] Modelos 3D leves no Blender (opcional: cadeado, cartão)
 - [ ] Teste no óculos com o kit + ensaio, 1 semana antes da feira
