@@ -204,7 +204,7 @@ public class FluxoAcesso : MonoBehaviour
         return r;
     }
 
-    const string LeLe = "1. O leitor RFID lê o código do cartão";
+    const string LeLe = "1. O leitor NFC lê o código do cartão";
 
     // Para cada resposta do ESP32: por onde o sinal passa, a cor, o painel e a legenda.
     // Separado do resto para poder ser testado sem o oculos.

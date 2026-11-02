@@ -155,7 +155,7 @@ public class KitVirtual : MonoBehaviour
         b.SetActive(false);
     }
 
-    // Circulos crescendo e sumindo sobre o leitor, como o sinal de radio do RFID.
+    // Circulos crescendo e sumindo sobre o leitor, como o sinal de radio do NFC.
     IEnumerator OndasDeRadio()
     {
         if (ondas == null) yield break;

@@ -1,11 +1,11 @@
 # ControleAcessoMR
 
 App de **realidade mista** para Meta Quest 3/3S que mostra, "ao vivo", como funciona um kit
-de controle de acesso por RFID montado para uma feira escolar.
+de controle de acesso por cartão NFC montado para uma feira escolar.
 
 O visitante coloca o óculos e vê, sobre a mesa, um **kit virtual em 3D** (cópia do kit
 real, 2x maior) ao lado do kit de verdade, no estilo da foto de referência: etiquetas
-"LEITOR RFID / ESP32 / LCD / SERVO", luz percorrendo o caminho do sinal, o LCD virtual
+"LEITOR NFC / ESP32 / LCD / SERVO", luz percorrendo o caminho do sinal, o LCD virtual
 escrevendo, a cancela subindo e um painel **ACESSO AUTORIZADO** (verde, cadeado aberto)
 ou **ACESSO NEGADO** (vermelho, cadeado fechado).
 
@@ -30,7 +30,7 @@ Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escrito
 
 | Peça | Função |
 |---|---|
-| RC522 (leitor RFID) | Lê o cartão e envia o código |
+| RC522 (leitor NFC, 13,56 MHz) | Lê o cartão NFC e envia o código |
 | ESP32 | Recebe o código e decide se autoriza |
 | LCD 16x2 | Mostra o resultado |
 | Servo (cancela) | Abre quando o acesso é autorizado |
@@ -149,6 +149,7 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - Público: visitantes leigos **e** o apresentador.
 - Mostrar casos **autorizado e negado**.
 - Textos no óculos **só em português**.
+- Os cartões são **NFC** (o RC522 lê NFC 13,56 MHz): nos textos para o público usar "NFC", não "RFID".
 - Kit **virtual + real juntos**, virtual **2x** maior, posicionado pelo **QR code**, **na altura dos olhos, à frente** (olhar para baixo = mesa com o kit real; olhar para a frente = kit virtual).
 - Gatilhos: cartão virtual, cartão real (via ESP32) e simulação como plano B.
 - O código do ESP32 não depende do óculos.

@@ -655,7 +655,7 @@ public class ControleAcessoMR : MonoBehaviour
     {
         if (kit == null) return;
 
-        string[] titulos = { "LEITOR RFID", "ESP32", "LCD", "SERVO" };
+        string[] titulos = { "LEITOR NFC", "ESP32", "LCD", "SERVO" };
         string[] explicacoes =
         {
             "Le o cartao e\nenvia o codigo dele.",
@@ -791,7 +791,7 @@ public class ControleAcessoMR : MonoBehaviour
         boasVindas.SetParent(ajuste, false);
 
         float s = fluxo.tamanhoTexto * 1.6f;
-        Linha("CONTROLE DE ACESSO POR RFID", s * 1.25f, 0.052f, CorTitulo, FontStyle.Bold);
+        Linha("CONTROLE DE ACESSO POR NFC", s * 1.25f, 0.052f, CorTitulo, FontStyle.Bold);
         Linha("Veja o sinal viajar pelos fios", s * 0.8f, 0.012f, CorTextoSuave, FontStyle.Normal);
         passosBoasVindas = Linha("1  Pegue um cartao      2  Encoste no LEITOR", s * 0.95f, -0.035f, CorPassos, FontStyle.Bold);
 
