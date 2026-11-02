@@ -1136,7 +1136,7 @@ body.modoApresentacao #cabecalho,body.modoApresentacao #abasAdmin{display:none}
     <button class="azul" onclick="telaCheia()">Tela cheia</button>
    </div>
    <div class="sub">CIDADANIA DIGITAL</div>
-   <h1>Controle de acesso por RFID</h1>
+   <h1>Controle de acesso por NFC</h1>
    <div id="demoConexao" class="online">● Conectando...</div>
    <div id="demoStatus" class="status demoStatus">
     <h2 id="demoTitulo">Aproxime seu cartão</h2>
