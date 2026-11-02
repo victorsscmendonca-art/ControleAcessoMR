@@ -35,14 +35,14 @@ public class ControleAcessoMR : MonoBehaviour
     // Olhando para baixo a pessoa ve a mesa com o kit real; olhando para a frente,
     // ve o kit virtual um pouco abaixo da linha dos olhos, inclinado como uma vitrine
     // (deitado na altura dos olhos ele apareceria de lado, como uma linha).
-    const float AbaixoDosOlhos = 0.02f;   // kit de frente para os olhos, nao na bancada
-    const float InclinacaoKit = 45f;
+    const float AbaixoDosOlhos = 0f;   // centro do kit na linha dos olhos: olhar para frente = kit virtual
+    const float InclinacaoKit = 60f;   // quase em pe, de frente para a pessoa
     const float AlemDoQR = 0.1f;          // um pouco para o fundo; cartoes ao alcance da mao
     const float DistanciaManual = 0.7f;
 
     // A altura acompanha cada visitante (crianca ou adulto), devagar e so quando
     // a diferenca e grande, para o kit nao "pular" a cada movimento da cabeca.
-    const float ZonaMortaAltura = 0.12f;
+    const float ZonaMortaAltura = 0.06f;
     const float VelocidadeAltura = 0.15f;  // metros por segundo
     // Quase transparente: o kit real, embaixo, precisa continuar visivel.
     static readonly Color CorBordaBandeja = new Color(0.3f, 0.85f, 1f, 0.7f);
@@ -77,13 +77,13 @@ public class ControleAcessoMR : MonoBehaviour
     readonly List<Etiqueta> etiquetas = new List<Etiqueta>();
     Font fonte;
     Material matBase;
-    TextMesh painel, boasVindas;
-    Transform fundoBoasVindas, faixaBoasVindas;
+    TextMesh painel, passosBoasVindas;
+    Transform boasVindas;
 
-    const string TextoBoasVindas =
-        "<size=64><b>CONTROLE DE ACESSO POR RFID</b></size>\n\n" +
-        "<size=48>Veja o sinal viajar pelos fios do kit</size>\n\n" +
-        "<size=52><b>1</b> Pegue um cartao     <b>2</b> Encoste no LEITOR</size>";
+    // Cartao de boas-vindas: titulo, frase curta e os 2 passos (o passo pisca devagar).
+    static readonly Color CorTitulo = new Color(0.45f, 0.88f, 1f);
+    static readonly Color CorTextoSuave = new Color(0.78f, 0.84f, 0.88f);
+    static readonly Color CorPassos = new Color(0.55f, 1f, 0.7f);
     float ultimaAtividade;
     Transform raiz, ajuste, cabeca;
     MRUKTrackable qrAtual;
@@ -765,40 +765,57 @@ public class ControleAcessoMR : MonoBehaviour
             return;
         }
 
-        if (boasVindas == null)
-        {
-            var go = new GameObject("BoasVindas");
-            go.transform.SetParent(ajuste, false);
-            boasVindas = ConfigurarTexto(go, TextoBoasVindas, fluxo.tamanhoTexto * 2.2f);
-            boasVindas.fontStyle = FontStyle.Normal;
-            boasVindas.color = new Color(0.9f, 0.9f, 0.9f);   // branco suave: melhor no oculos
-
-            var fundo = NovaForma(PrimitiveType.Quad, "Fundo", go.transform, out fundoBoasVindas);
-            fundo.material.color = new Color(0.03f, 0.08f, 0.11f, 0.95f);
-            var faixa = NovaForma(PrimitiveType.Quad, "Faixa", go.transform, out faixaBoasVindas);
-            faixa.material.color = CorBordaBandeja;
-        }
+        if (boasVindas == null) CriarBoasVindas();
 
         bool livre = !fluxo.Ocupado;
         boasVindas.gameObject.SetActive(livre);
 
         if (livre && cabeca != null)
         {
-            // Bem acima do kit (nao cobre as pecas), virado para a pessoa.
-            var t = boasVindas.transform;
-            t.position = ajuste.position + Vector3.up * (fluxo.alturaPainel + 0.16f);
-            t.rotation = Quaternion.LookRotation(t.position - cabeca.position, Vector3.up);
+            // Logo acima do kit (nao cobre as pecas), virado para a pessoa.
+            boasVindas.position = ajuste.position + Vector3.up * (fluxo.alturaPainel + 0.09f);
+            boasVindas.rotation = Quaternion.LookRotation(boasVindas.position - cabeca.position, Vector3.up);
 
-            // Cartao escuro do tamanho do texto, com faixa azul em cima.
-            Bounds b = boasVindas.GetComponent<MeshRenderer>().localBounds;
-            fundoBoasVindas.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
-            fundoBoasVindas.localScale = new Vector3(b.size.x + 0.06f, b.size.y + 0.04f, 1f);
-            faixaBoasVindas.localPosition = new Vector3(b.center.x, b.max.y + 0.02f, 0.001f);
-            faixaBoasVindas.localScale = new Vector3(b.size.x + 0.06f, 0.006f, 1f);
+            var c = CorPassos;
+            c.a = 0.65f + 0.35f * Mathf.Sin(Time.time * 3f);
+            passosBoasVindas.color = c;
         }
 
         if (!livre) ultimaAtividade = Time.time;
         else if (Time.time - ultimaAtividade > TempoVitrine) Simular(proximaSimulacaoNegada);
+    }
+
+    void CriarBoasVindas()
+    {
+        boasVindas = new GameObject("BoasVindas").transform;
+        boasVindas.SetParent(ajuste, false);
+
+        float s = fluxo.tamanhoTexto * 1.6f;
+        Linha("CONTROLE DE ACESSO POR RFID", s * 1.25f, 0.052f, CorTitulo, FontStyle.Bold);
+        Linha("Veja o sinal viajar pelos fios", s * 0.8f, 0.012f, CorTextoSuave, FontStyle.Normal);
+        passosBoasVindas = Linha("1  Pegue um cartao      2  Encoste no LEITOR", s * 0.95f, -0.035f, CorPassos, FontStyle.Bold);
+
+        // Cartao escuro quase opaco (le melhor no passthrough) com filete azul em cima.
+        var fundo = NovaForma(PrimitiveType.Quad, "Fundo", boasVindas, out var fundoT);
+        fundo.material.color = new Color(0.03f, 0.07f, 0.1f, 0.95f);
+        fundoT.localPosition = new Vector3(0f, 0.01f, 0.003f);
+        fundoT.localScale = new Vector3(0.52f, 0.14f, 1f);
+
+        var faixa = NovaForma(PrimitiveType.Quad, "Faixa", boasVindas, out var faixaT);
+        faixa.material.color = CorBordaBandeja;
+        faixaT.localPosition = new Vector3(0f, 0.08f, 0.002f);
+        faixaT.localScale = new Vector3(0.52f, 0.005f, 1f);
+    }
+
+    TextMesh Linha(string texto, float tamanho, float y, Color cor, FontStyle estilo)
+    {
+        var go = new GameObject("Linha");
+        go.transform.SetParent(boasVindas, false);
+        go.transform.localPosition = new Vector3(0f, y, 0f);
+        var t = ConfigurarTexto(go, texto, tamanho);
+        t.color = cor;
+        t.fontStyle = estilo;
+        return t;
     }
 
     bool TemPermissaoCena()
