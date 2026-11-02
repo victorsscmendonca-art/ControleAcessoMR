@@ -75,6 +75,11 @@ String ultimaHora = "";
 String ultimaOrigem = "";
 
 bool temLeitura = false;
+
+// Sobe a cada evento. Quem acompanha de fora (ex.: oculos de
+// realidade mista) percebe novidade quando o numero muda.
+unsigned long numeroEvento = 0;
+
 int totalLiberados = 0;
 int totalNegados = 0;
 
@@ -234,6 +239,7 @@ void rotaMe();
 void rotaLogout();
 void rotaHora();
 void rotaDados();
+void rotaEvento();
 void enviarAdmin();
 void enviarVisitante(int indice);
 
@@ -462,6 +468,7 @@ void registrarEvento(
   ultimaHora = pegarHora();
   ultimaOrigem = origem;
   temLeitura = true;
+  numeroEvento++;
 
   int limite = histTotal;
   if (limite >= MAX_HISTORICO) limite = MAX_HISTORICO - 1;
@@ -2012,6 +2019,19 @@ void rotaDados() {
   else enviarVisitante(sessoes[s].usuario);
 }
 
+// Rota publica e somente leitura para acompanhar o sistema de fora.
+// Nao expoe nome nem UID; nao comanda nada.
+void rotaEvento() {
+  String json = "{\"numero\":" + String(numeroEvento);
+  json += ",\"status\":" + jtexto(ultimoStatus);
+  json += ",\"origem\":" + jtexto(ultimaOrigem);
+  json += ",\"portaAberta\":" + jsonBool(portaAberta);
+  json += ",\"restante\":" + String(segundosRestantes()) + "}";
+
+  servidor.sendHeader("Cache-Control", "no-store");
+  servidor.send(200, "application/json; charset=utf-8", json);
+}
+
 // ================= CADASTROS =================
 
 void rotaCadastrar() {
@@ -2455,6 +2475,7 @@ void setup() {
   servidor.on("/me", HTTP_GET, rotaMe);
   servidor.on("/dados", HTTP_GET, rotaDados);
   servidor.on("/hora", HTTP_POST, rotaHora);
+  servidor.on("/evento", HTTP_GET, rotaEvento);
 
   servidor.on("/cadastrar", HTTP_POST, rotaCadastrar);
   servidor.on("/status", HTTP_POST, rotaStatus);
