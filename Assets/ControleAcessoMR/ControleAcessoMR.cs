@@ -35,8 +35,8 @@ public class ControleAcessoMR : MonoBehaviour
     // Olhando para baixo a pessoa ve a mesa com o kit real; olhando para a frente,
     // ve o kit virtual um pouco abaixo da linha dos olhos, inclinado como uma vitrine
     // (deitado na altura dos olhos ele apareceria de lado, como uma linha).
-    const float AbaixoDosOlhos = 0.2f;
-    const float InclinacaoKit = 30f;
+    const float AbaixoDosOlhos = 0.02f;   // kit de frente para os olhos, nao na bancada
+    const float InclinacaoKit = 45f;
     const float AlemDoQR = 0.1f;          // um pouco para o fundo; cartoes ao alcance da mao
     const float DistanciaManual = 0.7f;
 
@@ -45,7 +45,6 @@ public class ControleAcessoMR : MonoBehaviour
     const float ZonaMortaAltura = 0.12f;
     const float VelocidadeAltura = 0.15f;  // metros por segundo
     // Quase transparente: o kit real, embaixo, precisa continuar visivel.
-    static readonly Color CorBandeja = new Color(0.3f, 0.85f, 1f, 0.04f);
     static readonly Color CorBordaBandeja = new Color(0.3f, 0.85f, 1f, 0.7f);
 
     // Botoes na frente-direita do kit (os cartoes ficam na frente-esquerda).
@@ -79,6 +78,12 @@ public class ControleAcessoMR : MonoBehaviour
     Font fonte;
     Material matBase;
     TextMesh painel, boasVindas;
+    Transform fundoBoasVindas, faixaBoasVindas;
+
+    const string TextoBoasVindas =
+        "<size=64><b>CONTROLE DE ACESSO POR RFID</b></size>\n\n" +
+        "<size=48>Veja o sinal viajar pelos fios do kit</size>\n\n" +
+        "<size=52><b>1</b> Pegue um cartao     <b>2</b> Encoste no LEITOR</size>";
     float ultimaAtividade;
     Transform raiz, ajuste, cabeca;
     MRUKTrackable qrAtual;
@@ -193,12 +198,6 @@ public class ControleAcessoMR : MonoBehaviour
 
         float y = b.min.y - 0.003f;
         float lx = b.size.x + 0.06f, lz = b.size.z + 0.06f;
-
-        var tampo = NovaForma(PrimitiveType.Quad, "Bandeja", ajuste, out var tampoT);
-        tampo.material.color = CorBandeja;
-        tampoT.localPosition = new Vector3(b.center.x, y, b.center.z);
-        tampoT.localRotation = Quaternion.Euler(90f, 0f, 0f);
-        tampoT.localScale = new Vector3(lx, lz, 1f);
 
         // Contorno brilhante: 4 filetes finos nas bordas.
         const float fio = 0.004f;
@@ -770,16 +769,33 @@ public class ControleAcessoMR : MonoBehaviour
         {
             var go = new GameObject("BoasVindas");
             go.transform.SetParent(ajuste, false);
-            go.transform.localPosition = new Vector3(0f, fluxo.alturaPainel + 0.08f, 0f);   // acima das etiquetas
-            boasVindas = ConfigurarTexto(go, "BEM-VINDO!\nPegue um cartao e\nencoste no LEITOR RFID", fluxo.tamanhoTexto * 1.3f);
-            boasVindas.color = new Color(0.55f, 0.9f, 1f);
+            boasVindas = ConfigurarTexto(go, TextoBoasVindas, fluxo.tamanhoTexto * 2.2f);
+            boasVindas.fontStyle = FontStyle.Normal;
+            boasVindas.color = new Color(0.9f, 0.9f, 0.9f);   // branco suave: melhor no oculos
+
+            var fundo = NovaForma(PrimitiveType.Quad, "Fundo", go.transform, out fundoBoasVindas);
+            fundo.material.color = new Color(0.03f, 0.08f, 0.11f, 0.95f);
+            var faixa = NovaForma(PrimitiveType.Quad, "Faixa", go.transform, out faixaBoasVindas);
+            faixa.material.color = CorBordaBandeja;
         }
 
         bool livre = !fluxo.Ocupado;
         boasVindas.gameObject.SetActive(livre);
 
         if (livre && cabeca != null)
-            boasVindas.transform.rotation = Quaternion.LookRotation(boasVindas.transform.position - cabeca.position, Vector3.up);
+        {
+            // Bem acima do kit (nao cobre as pecas), virado para a pessoa.
+            var t = boasVindas.transform;
+            t.position = ajuste.position + Vector3.up * (fluxo.alturaPainel + 0.16f);
+            t.rotation = Quaternion.LookRotation(t.position - cabeca.position, Vector3.up);
+
+            // Cartao escuro do tamanho do texto, com faixa azul em cima.
+            Bounds b = boasVindas.GetComponent<MeshRenderer>().localBounds;
+            fundoBoasVindas.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
+            fundoBoasVindas.localScale = new Vector3(b.size.x + 0.06f, b.size.y + 0.04f, 1f);
+            faixaBoasVindas.localPosition = new Vector3(b.center.x, b.max.y + 0.02f, 0.001f);
+            faixaBoasVindas.localScale = new Vector3(b.size.x + 0.06f, 0.006f, 1f);
+        }
 
         if (!livre) ultimaAtividade = Time.time;
         else if (Time.time - ultimaAtividade > TempoVitrine) Simular(proximaSimulacaoNegada);
