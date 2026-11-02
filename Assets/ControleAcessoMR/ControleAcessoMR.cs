@@ -107,6 +107,7 @@ public class ControleAcessoMR : MonoBehaviour
         if (sh == null) sh = Shader.Find("UI/Default");
         if (sh != null) matBase = new Material(sh);
 
+        ConfigurarDesempenho();
         CriarRaizEKit();
         CarregarPosicaoKit();
         CriarEtiquetas();
@@ -135,6 +136,20 @@ public class ControleAcessoMR : MonoBehaviour
             MRUK.Instance.SceneSettings.TrackableAdded.RemoveListener(OnTrackableAdded);
             MRUK.Instance.SceneSettings.TrackableRemoved.RemoveListener(OnTrackableRemoved);
         }
+    }
+
+    // 90 Hz (mais fluido e confortavel; a cena e leve) e foveated rendering
+    // (menos detalhe nas bordas da visao, onde o olho nao repara).
+    static void ConfigurarDesempenho()
+    {
+        OVRManager.foveatedRenderingLevel = OVRManager.FoveatedRenderingLevel.High;
+        OVRManager.useDynamicFoveatedRendering = true;
+
+        var tela = OVRManager.display;
+        if (tela == null || tela.displayFrequenciesAvailable == null) return;
+
+        if (System.Array.IndexOf(tela.displayFrequenciesAvailable, 90f) >= 0)
+            tela.displayFrequency = 90f;
     }
 
     // ---------- Kit virtual ----------
@@ -554,14 +569,18 @@ public class ControleAcessoMR : MonoBehaviour
     // Cartao VIRTUAL encostado no leitor virtual: mesma logica do ESP32.
     void OnCartaoVirtual(bool liberado)
     {
-        string status;
-
-        if (!liberado) status = "NAO CADASTRADO";
-        else if (kit.CancelaAberta) status = "ENTRADA FECHADA";
-        else status = "ENTRADA ABERTA";
+        string status = StatusDoCartao(liberado, kit.CancelaAberta);
 
         fecharVirtualEm = status == "ENTRADA ABERTA" ? Time.time + TempoFechamentoVirtual : -1f;
         fluxo.Mostrar(status);
+    }
+
+    // Mesma regra do ESP32 (processarCartao): negado nao mexe na cancela;
+    // liberado abre, ou fecha se ja estiver aberta.
+    public static string StatusDoCartao(bool liberado, bool cancelaAberta)
+    {
+        if (!liberado) return "NAO CADASTRADO";
+        return cancelaAberta ? "ENTRADA FECHADA" : "ENTRADA ABERTA";
     }
 
     // Botoes "Simular" e botao Menu.

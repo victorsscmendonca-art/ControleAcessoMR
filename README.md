@@ -105,6 +105,14 @@ Todos os GND ligados juntos.
   cartões em -Z = lado da pessoa) e liga Read/Write no FBX (o LCD lê a geometria da tela).
 - Cancela virtual fecha sozinha 8 s depois de abrir pelo cartão virtual.
 
+### Desempenho e testes
+- Sem sombras (luz e URP), resolução 100% (`Mobile_RPAsset`), 90 Hz e foveated rendering High dinâmico
+  (`ConfigurarDesempenho` em `ControleAcessoMR.cs`).
+- Pacotes sem uso removidos (Visual Scripting, Multiplayer Center, Timeline, Collab, Mock HMD).
+  AI Navigation fica: o MRUK depende dele.
+- Testes EditMode em `Assets/Editor/Testes/TestesAcesso.cs` (Test Runner > EditMode). Um deles lê o
+  `.ino` do ESP32 e falha se algum status novo/renomeado não tiver animação no óculos.
+
 ### Controles do apresentador (Touch)
 Menu simula cartão (alterna liberado/negado) · A posicionar na frente · B painel de diagnóstico ·
 X zerar ajuste · Y salvar posição do kit · analógicos movem/giram o kit ·
@@ -126,7 +134,7 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - [x] Cadeado 3D (aberto/fechado, 436 faces) no painel de resultado. Fonte: `Modelos3D/Cadeado.blend` → `Assets/ControleAcessoMR/Modelos/Cadeado.fbx`
 - [x] Kit virtual 3D igual à foto (RC522, ESP32, LCD, servo+cancela, protoboard, buzzer, fios, 2 cartões)
 - [x] Cartão virtual no leitor → luz, LCD escreve, cancela sobe, buzzer, painel (testado no Editor: liberado e negado)
-- [ ] Revisão geral pelo dono
+- [x] Revisão geral (Meta code review + ponytail-review) e correções
 - [ ] Gerar APK e testar no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas

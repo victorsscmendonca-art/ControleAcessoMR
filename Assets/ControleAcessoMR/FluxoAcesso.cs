@@ -127,10 +127,22 @@ public class FluxoAcesso : MonoBehaviour
     // Retorna false para eventos que nao tem animacao (ex.: leitura para cadastro).
     public bool Mostrar(string status)
     {
-        int[] caminho;
-        Color cor;
-        string titulo;
+        if (!Rota(status, out int[] caminho, out Color cor, out string titulo))
+            return false;
 
+        // Cadeado aberto quando a cancela abre (ou ja esta aberta).
+        bool aberto = cor == Verde || cor == Amarelo;
+
+        if (atual != null) StopCoroutine(atual);
+        if (kit != null) kit.Inicio(status);
+        atual = StartCoroutine(Animar(caminho, cor, titulo, aberto));
+        return true;
+    }
+
+    // Para cada resposta do ESP32: por onde a luz passa, a cor e o texto do painel.
+    // Separado do resto para poder ser testado sem o oculos.
+    public static bool Rota(string status, out int[] caminho, out Color cor, out string titulo)
+    {
         switch (status)
         {
             case "ENTRADA ABERTA":
@@ -166,15 +178,10 @@ public class FluxoAcesso : MonoBehaviour
                 cor = Cinza; titulo = "CANCELA\nFECHADA";
                 break;
             default:
+                caminho = null; cor = default; titulo = null;
                 return false;
         }
 
-        // Cadeado aberto quando a cancela abre (ou ja esta aberta).
-        bool aberto = cor == Verde || cor == Amarelo;
-
-        if (atual != null) StopCoroutine(atual);
-        if (kit != null) kit.Inicio(status);
-        atual = StartCoroutine(Animar(caminho, cor, titulo, aberto));
         return true;
     }
 
