@@ -22,11 +22,13 @@ Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escrito
 > **Regras para o agente:** usar automaticamente todas as skills úteis (Meta `hz-*`, Unity, Blender,
 > ponytail, graphify, design...) sem perguntar; sempre que possível mostrar o resultado com foto
 > (captura do Unity/Blender); backup git antes de mexer; plano antes de mudanças grandes.
-> **Não gerar APK até o dono pedir.**
+> **Não gerar APK até o dono pedir**; quando gerar, publicar como Release no GitHub.
 
 ---
 
 > **Guia de teste passo a passo e tabela de botões:** [GUIA_DE_TESTE.md](GUIA_DE_TESTE.md)
+> **Histórico, decisões e como continuar num chat novo:** [HISTORICO.md](HISTORICO.md)
+> **APK:** quando gerado, fica nas **Releases** deste repositório no GitHub.
 
 ## O kit físico
 
@@ -145,7 +147,8 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - [x] Versão melhorada: luz percorre os fios (ESP32 → LCD e servo ao mesmo tempo), legenda contando a história, ondas no leitor, ESP32 brilha, LCD digita letra a letra, sons de sinal e motor
 - [x] Feira: mensagem de boas-vindas, painel de diagnóstico escondido (botão B), **modo vitrine** (40 s parado → simula sozinho, alternando liberado/negado)
 - [x] Meta XR Simulator v207 instalado (Window > Meta > Meta XR Simulator > Activate) para testar no PC
-- [ ] Gerar APK e testar no óculos com o kit + ensaio, 1 semana antes da feira
+- [x] Letras nítidas (TextMeshPro), luz Wi-Fi do ESP32, cartões virtuais somem sozinhos com cartão real
+- [ ] Gerar APK (publicar na Release do GitHub) e testar no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas
 - Público: visitantes leigos **e** o apresentador.
@@ -159,3 +162,10 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 ### Pendências do dono
 - Trocar as senhas fracas do ESP32 (`WIFI_SENHA` e `ADMIN_SENHA`) antes da feira.
 - Gravar o `.ino` no ESP32 e testar `http://192.168.4.1/evento` pelo celular.
+
+## Fotos (Unity)
+
+| | |
+|---|---|
+| ![Boas-vindas](docs/fotos/01_boas_vindas.png) | ![Animação](docs/fotos/02_animacao.png) |
+| ![Cartão real: cartões virtuais somem](docs/fotos/03_cartao_real_cartoes_somem.png) | ![Cartões escondidos](docs/fotos/04_cartoes_escondidos.png) |

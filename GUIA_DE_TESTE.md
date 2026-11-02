@@ -35,9 +35,10 @@ mensagem **CONTROLE DE ACESSO POR NFC** acima dele. Olhando para baixo você vê
 
 ## Passo 3 — Ver se o ESP32 está conectado
 
-1. Aperte **B**: aparece o painel de diagnóstico (letras brancas).
-2. Procure a linha **ESP32: conectado**.
-3. Aperte **B** de novo para esconder.
+1. Olhe a **bolinha acima do ESP32 virtual**: **verde** = conectado; **vermelha piscando** = sem sinal.
+2. Para mais detalhes, aperte **B**: aparece o painel de diagnóstico (letras brancas).
+3. Procure a linha **ESP32: conectado**.
+4. Aperte **B** de novo para esconder.
 
 **Se mostrar "desconectado":** o óculos não está no Wi-Fi `Controle_Acesso` (volte ao Passo 1).
 
@@ -52,6 +53,8 @@ mensagem **CONTROLE DE ACESSO POR NFC** acima dele. Olhando para baixo você vê
 - O LCD virtual escreve letra por letra, a cancela virtual sobe e o buzzer apita.
 - Uma legenda embaixo conta cada etapa.
 - Aparece o painel verde **ACESSO AUTORIZADO** com o cadeado aberto.
+
+- Os **cartões virtuais somem** por 30 segundos (para não confundir quem está com o cartão real).
 
 3. Repita com o cartão **NEGADO**. **Esperado:** painel vermelho **ACESSO NEGADO**, cadeado fechado e
    a cancela **não** mexe.

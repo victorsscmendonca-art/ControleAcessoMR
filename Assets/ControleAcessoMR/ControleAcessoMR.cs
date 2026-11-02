@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections.Generic;
 using System.Text;
 using Meta.XR.MRUtilityKit;
@@ -14,7 +15,7 @@ public class ControleAcessoMR : MonoBehaviour
         public string explicacao;
         public Transform ancora;
         public Transform raiz;
-        public TextMesh texto;
+        public TextMeshPro texto;
         public Renderer borda;
         public Transform bordaT;
         public Renderer fundo;
@@ -26,7 +27,7 @@ public class ControleAcessoMR : MonoBehaviour
 
     enum Modo { Aguardando, QR, Manual }
 
-    const float TamanhoEtiqueta = 0.0011f;
+    const float TamanhoEtiqueta = 0.0022f;
     const float TamanhoPainel = 0.004f;
     const float TempoVitrine = 40f;   // parado ha 40 s: simula sozinho (modo vitrine da feira)
     const float AlturaEtiqueta = 0.13f;
@@ -75,9 +76,8 @@ public class ControleAcessoMR : MonoBehaviour
     public GameObject kitVirtualPrefab;
 
     readonly List<Etiqueta> etiquetas = new List<Etiqueta>();
-    Font fonte;
     Material matBase;
-    TextMesh painel, passosBoasVindas;
+    TextMeshPro painel, passosBoasVindas;
     Transform boasVindas;
 
     // Cartao de boas-vindas: titulo, frase curta e os 2 passos (o passo pisca devagar).
@@ -86,6 +86,16 @@ public class ControleAcessoMR : MonoBehaviour
     static readonly Color CorPassos = new Color(0.55f, 1f, 0.7f);
     float ultimaAtividade;
     float cliqueEsqDesde = -1f;
+
+    // Cartao real lido: cartoes virtuais somem por um tempo (nao confundem o visitante).
+    const float TempoSemCartoesVirtuais = 30f;
+    float mostrarCartoesEm = -1f;
+
+    // Luz "Wi-Fi do ESP32" ao lado do ESP32 virtual: verde = conectado, vermelho piscando = sem sinal.
+    static readonly Color CorLuzOk = new Color(0.2f, 1f, 0.4f);
+    static readonly Color CorLuzSemSinal = new Color(1f, 0.25f, 0.2f);
+    Transform luzEsp;
+    Renderer luzEspR;
     Transform raiz, ajuste, cabeca;
     MRUKTrackable qrAtual;
     Modo modo = Modo.Aguardando;
@@ -108,7 +118,6 @@ public class ControleAcessoMR : MonoBehaviour
 
     void Start()
     {
-        fonte = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         cabeca = Cabeca();
 
         var sh = Shader.Find("Sprites/Default");
@@ -274,6 +283,13 @@ public class ControleAcessoMR : MonoBehaviour
         LerControles();
         AtualizarPainel();
         AtualizarBoasVindas();
+        AtualizarLuzEsp();
+
+        if (mostrarCartoesEm > 0f && Time.time > mostrarCartoesEm)
+        {
+            mostrarCartoesEm = -1f;
+            if (kit != null) kit.CartoesVisiveis = true;
+        }
 
         if (fecharVirtualEm > 0f && Time.time > fecharVirtualEm)
         {
@@ -565,12 +581,12 @@ public class ControleAcessoMR : MonoBehaviour
     void CriarFluxo()
     {
         fluxo = gameObject.AddComponent<FluxoAcesso>();
-        fluxo.alturaPainel = 0.22f;   // kit ja esta perto da linha dos olhos
+        fluxo.alturaPainel = 0.3f;    // kit ja esta perto da linha dos olhos
         fluxo.tamanhoTexto = 0.0026f;
         fluxo.kit = kit;
 
         Transform[] ancoras = kit != null ? kit.Ancoras : new Transform[0];
-        fluxo.Configurar(ajuste, ancoras, matBase, fonte, modeloCadeado);
+        fluxo.Configurar(ajuste, ancoras, matBase, modeloCadeado);
 
         esp = gameObject.AddComponent<EspCliente>();
         esp.NovoEvento += OnEventoEsp;
@@ -581,6 +597,12 @@ public class ControleAcessoMR : MonoBehaviour
     {
         ultimoEsp = status;
         fecharVirtualEm = -1f;   // quem manda na cancela agora e o ESP32
+
+        if (kit != null && (kit.CartoesVisiveis || mostrarCartoesEm > 0f))
+        {
+            kit.CartoesVisiveis = false;
+            mostrarCartoesEm = Time.time + TempoSemCartoesVirtuais;
+        }
         fluxo.Mostrar(status);
     }
 
@@ -694,7 +716,7 @@ public class ControleAcessoMR : MonoBehaviour
             e.raiz = go.transform;
 
             e.texto = ConfigurarTexto(go, e.titulo, TamanhoEtiqueta);
-            e.texto.fontStyle = FontStyle.Bold;
+            e.texto.fontStyle = FontStyles.Bold;
 
             if (matBase != null)
             {
@@ -718,7 +740,7 @@ public class ControleAcessoMR : MonoBehaviour
         {
             if (e.fundoT == null) continue;
 
-            Bounds b = e.texto.GetComponent<MeshRenderer>().localBounds;
+            Bounds b = Texto3D.Limites(e.texto);
 
             if (b.size.x < 0.001f)
             {
@@ -726,7 +748,7 @@ public class ControleAcessoMR : MonoBehaviour
                 continue;
             }
 
-            Vector3 tam = new Vector3(b.size.x + 0.035f, b.size.y + 0.02f, 1f);
+            Vector3 tam = new Vector3(b.size.x + 0.02f, b.size.y + 0.012f, 1f);
 
             e.fundoT.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
             e.fundoT.localScale = tam;
@@ -740,21 +762,9 @@ public class ControleAcessoMR : MonoBehaviour
             fundosPendentes = false;
     }
 
-    TextMesh ConfigurarTexto(GameObject go, string texto, float tamanho)
+    TextMeshPro ConfigurarTexto(GameObject go, string texto, float tamanho)
     {
-        var tm = go.AddComponent<TextMesh>();
-
-        tm.font = fonte;
-        tm.text = texto;
-        tm.fontSize = 80;
-        tm.characterSize = tamanho;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.alignment = TextAlignment.Center;
-        tm.color = Color.white;
-
-        go.GetComponent<MeshRenderer>().sharedMaterial = fonte.material;
-
-        return tm;
+        return Texto3D.Criar(go, texto, tamanho, negrito: false);
     }
 
     // ---------- Painel de diagnostico ----------
@@ -774,8 +784,27 @@ public class ControleAcessoMR : MonoBehaviour
     void AlternarCartoes()
     {
         if (kit == null) return;
+        mostrarCartoesEm = -1f;   // o apresentador decide: cancela a volta automatica
         kit.CartoesVisiveis = !kit.CartoesVisiveis;
         Mostrar(kit.CartoesVisiveis ? "Cartoes virtuais visiveis" : "Cartoes virtuais escondidos");
+    }
+
+    void AtualizarLuzEsp()
+    {
+        if (kit == null || esp == null || matBase == null || !raiz.gameObject.activeSelf) return;
+
+        if (luzEsp == null)
+        {
+            luzEspR = NovaForma(PrimitiveType.Sphere, "LuzWifiEsp32", ajuste, out luzEsp);
+            luzEsp.localScale = Vector3.one * 0.014f;
+        }
+
+        // Um pouco acima do ESP32 virtual.
+        luzEsp.position = kit.Ancoras[FluxoAcesso.Esp].position + ajuste.up * 0.035f;
+
+        bool aceso = esp.Conectado || Mathf.Repeat(Time.time, 1f) < 0.5f;
+        luzEspR.enabled = aceso;
+        luzEspR.material.color = esp.Conectado ? CorLuzOk : CorLuzSemSinal;
     }
 
     // ---------- Boas-vindas e modo vitrine ----------
@@ -796,7 +825,7 @@ public class ControleAcessoMR : MonoBehaviour
         if (livre && cabeca != null)
         {
             // Logo acima do kit (nao cobre as pecas), virado para a pessoa.
-            boasVindas.position = ajuste.position + Vector3.up * (fluxo.alturaPainel + 0.09f);
+            boasVindas.position = ajuste.position + Vector3.up * (fluxo.alturaPainel + 0.02f);
             boasVindas.rotation = Quaternion.LookRotation(boasVindas.position - cabeca.position, Vector3.up);
 
             var c = CorPassos;
@@ -814,23 +843,23 @@ public class ControleAcessoMR : MonoBehaviour
         boasVindas.SetParent(ajuste, false);
 
         float s = fluxo.tamanhoTexto * 1.6f;
-        Linha("CONTROLE DE ACESSO POR NFC", s * 1.25f, 0.052f, CorTitulo, FontStyle.Bold);
-        Linha("Veja o sinal viajar pelos fios", s * 0.8f, 0.012f, CorTextoSuave, FontStyle.Normal);
-        passosBoasVindas = Linha("1  Pegue um cartao      2  Encoste no LEITOR", s * 0.95f, -0.035f, CorPassos, FontStyle.Bold);
+        Linha("CONTROLE DE ACESSO POR NFC", s * 1.25f, 0.052f, CorTitulo, FontStyles.Bold);
+        Linha("Veja o sinal viajar pelos fios", s * 0.8f, 0.012f, CorTextoSuave, FontStyles.Normal);
+        passosBoasVindas = Linha("1  Pegue um cartao      2  Encoste no LEITOR", s * 0.95f, -0.035f, CorPassos, FontStyles.Bold);
 
         // Cartao escuro quase opaco (le melhor no passthrough) com filete azul em cima.
         var fundo = NovaForma(PrimitiveType.Quad, "Fundo", boasVindas, out var fundoT);
         fundo.material.color = new Color(0.03f, 0.07f, 0.1f, 0.95f);
         fundoT.localPosition = new Vector3(0f, 0.01f, 0.003f);
-        fundoT.localScale = new Vector3(0.52f, 0.14f, 1f);
+        fundoT.localScale = new Vector3(0.66f, 0.14f, 1f);
 
         var faixa = NovaForma(PrimitiveType.Quad, "Faixa", boasVindas, out var faixaT);
         faixa.material.color = CorBordaBandeja;
         faixaT.localPosition = new Vector3(0f, 0.08f, 0.002f);
-        faixaT.localScale = new Vector3(0.52f, 0.005f, 1f);
+        faixaT.localScale = new Vector3(0.66f, 0.005f, 1f);
     }
 
-    TextMesh Linha(string texto, float tamanho, float y, Color cor, FontStyle estilo)
+    TextMeshPro Linha(string texto, float tamanho, float y, Color cor, FontStyles estilo)
     {
         var go = new GameObject("Linha");
         go.transform.SetParent(boasVindas, false);

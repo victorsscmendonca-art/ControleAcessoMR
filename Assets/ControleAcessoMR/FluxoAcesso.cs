@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -31,7 +32,7 @@ public class FluxoAcesso : MonoBehaviour
     const float PausaNoNo = 0.35f;        // tempo para ler a legenda em cada peca
     const float TempoPainel = 5f;
     const float TamanhoPulso = 0.016f;
-    const float TamanhoLegenda = 0.0011f;
+    const float TamanhoLegenda = 0.0032f;
     const float AbaixoDoPainel = 0.075f;
 
     // Ajustados por quem configura.
@@ -57,7 +58,7 @@ public class FluxoAcesso : MonoBehaviour
 
     Transform[] ancoras;
     Transform painel;
-    TextMesh texto;
+    TextMeshPro texto;
     Transform fundoT;
     Renderer fundo;
     Coroutine atual;
@@ -67,15 +68,14 @@ public class FluxoAcesso : MonoBehaviour
     readonly List<TrailRenderer> rastros = new List<TrailRenderer>();
 
     Transform legenda;
-    TextMesh legendaTexto;
+    TextMeshPro legendaTexto;
     Transform legendaFundoT;
 
     Transform cadeadoT;
     GameObject cadeadoAberto, cadeadoFechado;
     Renderer[] pecasCadeado;
 
-    public void Configurar(Transform pai, Transform[] ancoras, Material matBase, Font fonte,
-                           GameObject modeloCadeado)
+    public void Configurar(Transform pai, Transform[] ancoras, Material matBase, GameObject modeloCadeado)
     {
         this.ancoras = ancoras;
 
@@ -86,7 +86,7 @@ public class FluxoAcesso : MonoBehaviour
         var go = new GameObject("PainelResultado");
         painel = go.transform;
         painel.SetParent(pai, false);
-        texto = NovoTexto(go, fonte, tamanhoTexto);
+        texto = Texto3D.Criar(go, "", tamanhoTexto);
 
         if (matBase != null)
             fundo = NovaForma(PrimitiveType.Quad, "Fundo", painel, matBase, out fundoT);
@@ -99,8 +99,7 @@ public class FluxoAcesso : MonoBehaviour
         var lg = new GameObject("Legenda");
         legenda = lg.transform;
         legenda.SetParent(pai, false);
-        legendaTexto = NovoTexto(lg, fonte, TamanhoLegenda);
-        legendaTexto.fontStyle = FontStyle.Normal;
+        legendaTexto = Texto3D.Criar(lg, "", TamanhoLegenda, negrito: false);
         legendaTexto.color = Color.white;
 
         if (matBase != null)
@@ -130,19 +129,6 @@ public class FluxoAcesso : MonoBehaviour
         pulsos.Add(t);
         pulsosR.Add(r);
         rastros.Add(rastro);
-    }
-
-    static TextMesh NovoTexto(GameObject go, Font fonte, float tamanho)
-    {
-        var t = go.AddComponent<TextMesh>();
-        t.font = fonte;
-        t.fontSize = 80;
-        t.characterSize = tamanho;
-        t.anchor = TextAnchor.MiddleCenter;
-        t.alignment = TextAlignment.Center;
-        t.fontStyle = FontStyle.Bold;
-        go.GetComponent<MeshRenderer>().sharedMaterial = fonte.material;
-        return t;
     }
 
     void CriarCadeado(GameObject modelo, Material matBase)
@@ -339,7 +325,7 @@ public class FluxoAcesso : MonoBehaviour
         painel.gameObject.SetActive(true);
         PosicionarTextos();
 
-        // O TextMesh so atualiza os limites no frame seguinte.
+        // O texto so atualiza os limites no frame seguinte.
         yield return null;
         AjustarFundo();
 
@@ -391,7 +377,7 @@ public class FluxoAcesso : MonoBehaviour
         yield return null;
         if (legendaFundoT == null) yield break;
 
-        Bounds b = legendaTexto.GetComponent<MeshRenderer>().localBounds;
+        Bounds b = Texto3D.Limites(legendaTexto);
         legendaFundoT.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
         legendaFundoT.localScale = new Vector3(b.size.x + 0.03f, b.size.y + 0.015f, 1f);
     }
@@ -428,7 +414,7 @@ public class FluxoAcesso : MonoBehaviour
     {
         if (fundoT == null) return;
 
-        Bounds b = texto.GetComponent<MeshRenderer>().localBounds;
+        Bounds b = Texto3D.Limites(texto);
 
         // Cadeado a esquerda do texto, da mesma altura que ele.
         float extra = 0f;

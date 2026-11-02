@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -45,7 +46,7 @@ public class KitVirtual : MonoBehaviour
 
     Cartao[] cartoes;
     Transform leitor, pivo, ponta, tela;
-    TextMesh textoLcd;
+    TextMeshPro textoLcd;
     Coroutine digitando;
     AudioSource som, somServo, somSinal;
     AudioClip bip, blip, motor;
@@ -412,16 +413,8 @@ public class KitVirtual : MonoBehaviour
         var go = new GameObject("LCD_Texto");
         go.transform.SetParent(tela, false);
 
-        textoLcd = go.AddComponent<TextMesh>();
-        var fonte = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        textoLcd.font = fonte;
-        textoLcd.fontSize = 80;
-        textoLcd.characterSize = 0.001f;
-        textoLcd.anchor = TextAnchor.MiddleCenter;
-        textoLcd.alignment = TextAlignment.Center;
-        textoLcd.fontStyle = FontStyle.Bold;
+        textoLcd = Texto3D.Criar(go, "", 0.001f);
         textoLcd.color = new Color(0.04f, 0.1f, 0.02f);
-        go.GetComponent<MeshRenderer>().sharedMaterial = fonte.material;
 
         // Texto deitado sobre a tela, legivel de quem esta na frente do kit.
         // A direcao da tela vem da geometria (cantos da malha, importada com Read/Write):
@@ -452,7 +445,7 @@ public class KitVirtual : MonoBehaviour
         // Diagonal da caixa ~ largura, ja que a tela e o texto sao bem mais largos que altos.
         // Assim a medida vale com o kit girado em qualquer direcao.
         float larguraTela = tela.GetComponent<Renderer>().bounds.size.magnitude;
-        float larguraTexto = textoLcd.GetComponent<Renderer>().bounds.size.magnitude;
+        float larguraTexto = Vector3.Scale(Texto3D.Limites(textoLcd).size, textoLcd.transform.lossyScale).magnitude;
 
         if (larguraTexto > 0.0001f)
             textoLcd.transform.localScale *= larguraTela * 0.85f / larguraTexto;
