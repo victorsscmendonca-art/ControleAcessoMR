@@ -247,6 +247,8 @@ public class KitVirtual : MonoBehaviour
     {
         foreach (var c in cartoes)
         {
+            if (!c.t.gameObject.activeSelf) continue;
+
             bool segurando = c.pegavel != null && c.pegavel.SelectingPointsCount > 0;
             bool perto = Vector3.Distance(c.t.position, leitor.position) < DistanciaLeitura;
 
@@ -281,6 +283,21 @@ public class KitVirtual : MonoBehaviour
     public void DevolverCartoes()
     {
         foreach (var c in cartoes) DevolverCartao(c);
+    }
+
+    // Apresentador esconde os cartoes virtuais quando o visitante usa o cartao real.
+    public bool CartoesVisiveis
+    {
+        get => cartoes[0].t.gameObject.activeSelf;
+        set
+        {
+            foreach (var c in cartoes)
+            {
+                DevolverCartao(c);
+                c.noLeitor = false;
+                c.t.gameObject.SetActive(value);
+            }
+        }
     }
 
     // ---------- Etapas da animacao (chamadas pelo FluxoAcesso) ----------

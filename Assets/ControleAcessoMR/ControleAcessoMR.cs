@@ -85,6 +85,7 @@ public class ControleAcessoMR : MonoBehaviour
     static readonly Color CorTextoSuave = new Color(0.78f, 0.84f, 0.88f);
     static readonly Color CorPassos = new Color(0.55f, 1f, 0.7f);
     float ultimaAtividade;
+    float cliqueEsqDesde = -1f;
     Transform raiz, ajuste, cabeca;
     MRUKTrackable qrAtual;
     Modo modo = Modo.Aguardando;
@@ -383,6 +384,7 @@ public class ControleAcessoMR : MonoBehaviour
         {
             if (teclado.digit1Key.wasPressedThisFrame) Simular(false);
             if (teclado.digit2Key.wasPressedThisFrame) Simular(true);
+            if (teclado.digit3Key.wasPressedThisFrame) AlternarCartoes();
         }
 #endif
 
@@ -401,8 +403,22 @@ public class ControleAcessoMR : MonoBehaviour
         if (OVRInput.GetDown(OVRInput.Button.SecondaryThumbstick))
             ProximoPasso();
 
+        // Clique analogico esq.: esconde/mostra os cartoes virtuais.
+        // Segurar 2 s: apaga a posicao salva do kit.
         if (OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick))
+            cliqueEsqDesde = Time.time;
+
+        if (OVRInput.GetUp(OVRInput.Button.PrimaryThumbstick) && cliqueEsqDesde > 0f)
+        {
+            cliqueEsqDesde = -1f;
+            AlternarCartoes();
+        }
+
+        if (cliqueEsqDesde > 0f && Time.time - cliqueEsqDesde > 2f)
+        {
+            cliqueEsqDesde = -1f;
             ApagarPosicaoKit();
+        }
 
         if (modo == Modo.Aguardando) return;
 
@@ -755,6 +771,13 @@ public class ControleAcessoMR : MonoBehaviour
         painel.gameObject.SetActive(false);   // so para o apresentador: botao B
     }
 
+    void AlternarCartoes()
+    {
+        if (kit == null) return;
+        kit.CartoesVisiveis = !kit.CartoesVisiveis;
+        Mostrar(kit.CartoesVisiveis ? "Cartoes virtuais visiveis" : "Cartoes virtuais escondidos");
+    }
+
     // ---------- Boas-vindas e modo vitrine ----------
     void AtualizarBoasVindas()
     {
@@ -881,7 +904,7 @@ public class ControleAcessoMR : MonoBehaviour
 
         sb.AppendLine("A=posicionar Y=salvar X=zerar B=painel");
         sb.AppendLine("Analogicos=mover kit  Clique dir=passo a passo");
-        sb.AppendLine("Clique esq=apagar posicao  Menu=simular cartao");
+        sb.AppendLine("Clique esq=esconder cartoes (segurar 2s=apagar posicao)  Menu=simular");
 
         painel.text = sb.ToString();
     }

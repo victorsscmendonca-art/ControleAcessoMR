@@ -121,7 +121,7 @@ Todos os GND ligados juntos.
 ### Controles do apresentador (Touch)
 Menu simula cartão (alterna liberado/negado) · A posicionar na frente · B painel de diagnóstico ·
 X zerar ajuste · Y salvar posição do kit · analógicos movem/giram o kit ·
-clique analógico dir. passo a passo (explicação de cada peça) · clique analógico esq. apagar posição salva.
+clique analógico dir. passo a passo (explicação de cada peça) · clique analógico esq. **esconde/mostra os cartões virtuais** (segurar 2 s apaga a posição salva).
 Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 
 ---
