@@ -40,3 +40,5 @@ Capturas/
 *.blend1
 Builds/
 build_apk.log
+Assets/Resources/DevAgentSettings.asset
+Assets/Resources/DevAgentSettings.asset.meta

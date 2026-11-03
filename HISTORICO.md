@@ -79,3 +79,10 @@ Cole isto para o agente:
 
 > Leia README.md, HISTORICO.md e GUIA_DE_TESTE.md do repositório ControleAcessoMR e continue o projeto.
 > Fale comigo em português simples; eu sou iniciante.
+
+## Segurança (nota do APK v0.3.0)
+
+- O Immersive Debugger da Meta cria `Assets/Resources/DevAgentSettings.asset` com um token de depuração e o IP da rede local
+  (desligado: `enabled: 0`). Ele **não vai mais para o git**. O APK v0.3.0 pode levá-lo dentro: **não compartilhe esse APK em público**.
+  Na próxima versão, tirar esse arquivo de `Resources` antes de gerar o APK.
+- Repositório e Release são **privados**.
