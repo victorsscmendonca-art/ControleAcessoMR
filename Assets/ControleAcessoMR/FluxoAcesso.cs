@@ -69,6 +69,7 @@ public class FluxoAcesso : MonoBehaviour
 
     Transform legenda;
     TextMeshPro legendaTexto;
+    Camera cam;
     Transform legendaFundoT;
 
     Transform cadeadoT;
@@ -398,7 +399,7 @@ public class FluxoAcesso : MonoBehaviour
         painel.position = p;
         legenda.position = p - Vector3.up * AbaixoDoPainel;
 
-        var cam = Camera.main;
+        if (cam == null) cam = Camera.main;   // guardada: Camera.main busca por tag a cada chamada
         if (cam == null) return;
 
         Vector3 dir = p - cam.transform.position;
