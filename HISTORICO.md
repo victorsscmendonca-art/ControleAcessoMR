@@ -16,6 +16,8 @@ com o agente (Claude) for perdido. Leia junto com o [README.md](README.md) e o
 
 ## Regra do APK
 
+Como gerar (já automatizado): `Unity.exe -batchmode -nographics -quit -buildTarget Android -projectPath <pasta> -executeMethod CompilarApk.Gerar -logFile build_apk.log` (com o Editor fechado). O APK sai em `Builds/Quest/ControleAcessoMR.apk`. Antes de gerar de novo, subir `AndroidBundleVersionCode` em `ProjectSettings`.
+
 Quando o dono pedir o APK:
 1. Gerar o build Android (Quest) pelo Unity.
 2. Publicar como **GitHub Release** no repositório privado (`gh release create vX.Y ControleAcessoMR.apk`),
@@ -58,7 +60,8 @@ Quando o dono pedir o APK:
 - [ ] Testar no óculos de verdade (QR, mãos, Wi-Fi, desempenho, sons).
 - [ ] Gravar o `.ino` no ESP32 e testar `http://192.168.4.1/evento` pelo celular.
 - [ ] Trocar as senhas fracas do ESP32 (`WIFI_SENHA`, `ADMIN_SENHA`).
-- [ ] Gerar o APK **quando o dono pedir** e publicar na Release do GitHub.
+- [x] APK **v0.3.0** gerado e publicado na [Release](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.3.0) (2026-11-02). Assinado com chave de depuração (serve para instalar no óculos do dono, não para a loja).
+- [ ] Para a loja da Meta (se um dia for): criar keystore de release, guardar com backup e gerar de novo.
 - [ ] Ensaio completo 1 semana antes da feira (última semana de novembro de 2026).
 
 ## Ferramentas instaladas no PC (para o agente)

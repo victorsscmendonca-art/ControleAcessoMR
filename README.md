@@ -148,7 +148,8 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - [x] Feira: mensagem de boas-vindas, painel de diagnóstico escondido (botão B), **modo vitrine** (40 s parado → simula sozinho, alternando liberado/negado)
 - [x] Meta XR Simulator v207 instalado (Window > Meta > Meta XR Simulator > Activate) para testar no PC
 - [x] Letras nítidas (TextMeshPro), luz Wi-Fi do ESP32, cartões virtuais somem sozinhos com cartão real
-- [ ] Gerar APK (publicar na Release do GitHub) e testar no óculos com o kit + ensaio, 1 semana antes da feira
+- [x] APK v0.3.0 gerado e publicado na Release do GitHub
+- [ ] Testar o APK no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas
 - Público: visitantes leigos **e** o apresentador.
