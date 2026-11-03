@@ -12,6 +12,15 @@ public static class CompilarApk
 {
     const string Saida = "Builds/Quest/ControleAcessoMR.apk";
 
+    // Tudo em Resources/ vai para o APK. O Immersive Debugger da Meta guarda ali um token
+    // de depuracao e o IP da rede: sai da pasta durante o build e volta no fim.
+    static readonly string[] SoParaDesenvolvimento =
+    {
+        "Assets/Resources/DevAgentSettings.asset",
+        "Assets/Resources/DevAgentSettings.asset.meta"
+    };
+    const string PastaReserva = "Library/FicaForaDoApk";
+
     public static void Gerar()
     {
         var cenas = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
@@ -36,7 +45,12 @@ public static class CompilarApk
             options = BuildOptions.None   // sem Development Build
         };
 
-        BuildReport r = BuildPipeline.BuildPlayer(opcoes);
+        TirarDoBuild();
+        BuildReport r;
+
+        try { r = BuildPipeline.BuildPlayer(opcoes); }
+        finally { DevolverAoProjeto(); }
+
         var resumo = r.summary;
 
         Debug.Log("[APK] resultado=" + resumo.result + " tamanho=" + (resumo.totalSize / (1024 * 1024)) + "MB erros=" + resumo.totalErrors);
@@ -53,5 +67,26 @@ public static class CompilarApk
         }
 
         EditorApplication.Exit(0);
+    }
+
+    static void TirarDoBuild()
+    {
+        Directory.CreateDirectory(PastaReserva);
+
+        foreach (var f in SoParaDesenvolvimento)
+            if (File.Exists(f)) File.Move(f, Path.Combine(PastaReserva, Path.GetFileName(f)));
+
+        AssetDatabase.Refresh();
+    }
+
+    static void DevolverAoProjeto()
+    {
+        foreach (var f in SoParaDesenvolvimento)
+        {
+            string reserva = Path.Combine(PastaReserva, Path.GetFileName(f));
+            if (File.Exists(reserva) && !File.Exists(f)) File.Move(reserva, f);
+        }
+
+        AssetDatabase.Refresh();
     }
 }

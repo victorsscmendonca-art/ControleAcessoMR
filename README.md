@@ -28,7 +28,8 @@ Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escrito
 
 > **Guia de teste passo a passo e tabela de botões:** [GUIA_DE_TESTE.md](GUIA_DE_TESTE.md)
 > **Histórico, decisões e como continuar num chat novo:** [HISTORICO.md](HISTORICO.md)
-> **APK:** quando gerado, fica nas **Releases** deste repositório no GitHub.
+> **APK:** fica nas **Releases** deste repositório (última: v0.3.1).
+> **QR code para imprimir:** [docs/qr/QR_para_imprimir.pdf](docs/qr/QR_para_imprimir.pdf)
 
 ## O kit físico
 
@@ -148,7 +149,8 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - [x] Feira: mensagem de boas-vindas, painel de diagnóstico escondido (botão B), **modo vitrine** (40 s parado → simula sozinho, alternando liberado/negado)
 - [x] Meta XR Simulator v207 instalado (Window > Meta > Meta XR Simulator > Activate) para testar no PC
 - [x] Letras nítidas (TextMeshPro), luz Wi-Fi do ESP32, cartões virtuais somem sozinhos com cartão real
-- [x] APK v0.3.0 gerado e publicado na Release do GitHub
+- [x] APK v0.3.1 (sem o arquivo de depuração) publicado na Release do GitHub
+- [x] QR code (12 e 15 cm) pronto para imprimir
 - [ ] Testar o APK no óculos com o kit + ensaio, 1 semana antes da feira
 
 ### Decisões já tomadas

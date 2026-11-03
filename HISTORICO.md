@@ -60,7 +60,8 @@ Quando o dono pedir o APK:
 - [ ] Testar no óculos de verdade (QR, mãos, Wi-Fi, desempenho, sons).
 - [ ] Gravar o `.ino` no ESP32 e testar `http://192.168.4.1/evento` pelo celular.
 - [ ] Trocar as senhas fracas do ESP32 (`WIFI_SENHA`, `ADMIN_SENHA`).
-- [x] APK **v0.3.0** gerado e publicado na [Release](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.3.0) (2026-11-02). Assinado com chave de depuração (serve para instalar no óculos do dono, não para a loja).
+- [x] APK **v0.3.1** (limpo: sem DevAgentSettings/token, verificado) publicado na [Release](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.3.1). Substitui a v0.3.0.
+- [x] (antiga) APK **v0.3.0** gerado e publicado na [Release](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.3.0) (2026-11-02). Assinado com chave de depuração (serve para instalar no óculos do dono, não para a loja).
 - [ ] Para a loja da Meta (se um dia for): criar keystore de release, guardar com backup e gerar de novo.
 - [ ] Ensaio completo 1 semana antes da feira (última semana de novembro de 2026).
 
@@ -86,3 +87,12 @@ Cole isto para o agente:
   (desligado: `enabled: 0`). Ele **não vai mais para o git**. O APK v0.3.0 pode levá-lo dentro: **não compartilhe esse APK em público**.
   Na próxima versão, tirar esse arquivo de `Resources` antes de gerar o APK.
 - Repositório e Release são **privados**.
+
+## QR code (decisão)
+
+- Texto: `CONTROLE_ACESSO_MR` (igual a `payloadEsperado` em `ControleAcessoMR.cs`). Versão 2 do QR (25x25), correção de erro M, sem logo.
+- Tamanho: 12 cm (recomendado) e 15 cm (reserva), borda branca de 4 módulos. A Meta não dá medida oficial em cm; só diz
+  "relativamente grande e perto do óculos, bem iluminado, sem logo, versão até 10". As medidas são da nossa escolha: **ajustar após o teste real**.
+- Arquivos: `docs/qr/` (PDF A4 de 2 páginas e PNGs). Gerados por `python Ferramentas/gerar_qr.py`.
+- A frequência de mãos do app está em LOW (HIGH/MAX desligariam o rastreamento de QR).
+- O APK pelo celular não instala ("problema ao analisar o pacote"): ainda sem causa confirmada; é feito só para o Quest. Testar no óculos.
