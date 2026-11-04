@@ -166,6 +166,13 @@ Gatilhos e grips ficam livres para pegar cartões e apertar botões.
 - Trocar as senhas fracas do ESP32 (`WIFI_SENHA` e `ADMIN_SENHA`) antes da feira.
 - Gravar o `.ino` no ESP32 e testar `http://192.168.4.1/evento` pelo celular.
 
+## Como funciona (imagens)
+
+![Passo a passo](docs/fotos/passo_a_passo.png)
+
+Animações: [autorizado](docs/fotos/animacao_autorizado.gif) · [negado](docs/fotos/animacao_negado.gif)
+(geradas pelo `Assets/Editor/CapturarSequencia.cs` em Play no Unity)
+
 ## Fotos (Unity)
 
 | | |
