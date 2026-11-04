@@ -24,6 +24,7 @@ public class FluxoAcesso : MonoBehaviour
         public Color cor;
         public string titulo;
         public string[] legendas;   // uma no inicio + uma por etapa
+        public string codigo;       // codigo de exemplo que viaja no fio (so quando um cartao e lido)
         public bool cadeadoAberto;
     }
 
@@ -70,6 +71,14 @@ public class FluxoAcesso : MonoBehaviour
     Transform legenda;
     TextMeshPro legendaTexto;
     Camera cam;
+
+    // O codigo do cartao viaja junto com a luz do leitor ate o ESP32: o aluno ve que o cartao
+    // e so um numero. Codigos de EXEMPLO (o ESP32 nao manda o codigo real, por privacidade).
+    public const string CodigoLiberado = "7A 3F 91 C2";
+    public const string CodigoNegado = "04 B2 5E 19";
+    const float TamanhoCodigo = 0.0034f;
+    const float AcimaDoPulso = 0.045f;
+    TextMeshPro codigoTexto;
     Transform legendaFundoT;
 
     Transform cadeadoT;
@@ -110,6 +119,12 @@ public class FluxoAcesso : MonoBehaviour
         }
 
         lg.SetActive(false);
+
+        var cg = new GameObject("CodigoDoCartao");
+        cg.transform.SetParent(pai, false);
+        codigoTexto = Texto3D.Criar(cg, "", TamanhoCodigo);
+        codigoTexto.color = new Color(1f, 0.95f, 0.55f);
+        cg.SetActive(false);
     }
 
     void CriarPulso(Transform pai, Material matBase)
@@ -179,6 +194,7 @@ public class FluxoAcesso : MonoBehaviour
         // Novo evento no meio de uma animacao: recomeca do zero.
         if (atual != null) StopCoroutine(atual);
         foreach (var p in pulsos) p.gameObject.SetActive(false);
+        if (codigoTexto != null) codigoTexto.transform.parent.gameObject.SetActive(false);
         if (kit != null) kit.Inicio(status);
         atual = StartCoroutine(Animar(rota));
         return true;
@@ -207,8 +223,8 @@ public class FluxoAcesso : MonoBehaviour
             case "ENTRADA ABERTA":
                 return new RotaAcesso
                 {
-                    etapas = new[] { ida, lcdEServo }, cor = Verde, titulo = "ACESSO\nAUTORIZADO", cadeadoAberto = true,
-                    legendas = new[] { LeLe, "2. O ESP32 confere: cartão cadastrado!", "3. O LCD avisa e o servo abre a cancela" }
+                    etapas = new[] { ida, lcdEServo }, cor = Verde, codigo = CodigoLiberado, titulo = "ACESSO\nAUTORIZADO", cadeadoAberto = true,
+                    legendas = new[] { LeLe, "2. O ESP32 acha " + CodigoLiberado + " na lista: cadastrado!", "3. O LCD avisa e o servo abre a cancela" }
                 };
             case "ABERTURA MANUAL":
                 return new RotaAcesso
@@ -220,11 +236,11 @@ public class FluxoAcesso : MonoBehaviour
             case "BLOQUEADO":
                 return new RotaAcesso
                 {
-                    etapas = new[] { ida, soLcd }, cor = Vermelho, titulo = "ACESSO\nNEGADO",
+                    etapas = new[] { ida, soLcd }, cor = Vermelho, codigo = CodigoNegado, titulo = "ACESSO\nNEGADO",
                     legendas = new[]
                     {
                         LeLe,
-                        status == "BLOQUEADO" ? "2. O ESP32 confere: cartão bloqueado!" : "2. O ESP32 confere: cartão NÃO cadastrado!",
+                        status == "BLOQUEADO" ? "2. O ESP32 confere: cartão bloqueado!" : "2. O ESP32 procura " + CodigoNegado + ": não está na lista!",
                         "3. O LCD avisa e a cancela continua fechada"
                     }
                 };
@@ -243,7 +259,7 @@ public class FluxoAcesso : MonoBehaviour
             case "ENTRADA FECHADA":
                 return new RotaAcesso
                 {
-                    etapas = new[] { ida, lcdEServo }, cor = Cinza, titulo = "CANCELA\nFECHADA",
+                    etapas = new[] { ida, lcdEServo }, cor = Cinza, codigo = CodigoLiberado, titulo = "CANCELA\nFECHADA",
                     legendas = new[] { "1. O mesmo cartão passa de novo no leitor", "2. O ESP32 reconhece quem abriu", "3. O servo fecha a cancela" }
                 };
             case "FECHAMENTO MANUAL":
@@ -291,6 +307,10 @@ public class FluxoAcesso : MonoBehaviour
                 pulsos[i].gameObject.SetActive(true);
             }
 
+            bool levaCodigo = rota.codigo != null && saltos[0].de == Leitor && saltos[0].para == Esp;
+            codigoTexto.text = levaCodigo ? "ID " + rota.codigo : "";
+            codigoTexto.transform.parent.gameObject.SetActive(levaCodigo);
+
             // Todos os pulsos da etapa chegam juntos, cada um no seu fio.
             for (float t = 0f; t < 1f; t += Time.deltaTime / duracao)
             {
@@ -302,9 +322,12 @@ public class FluxoAcesso : MonoBehaviour
                     pulsos[i].localScale = Vector3.one * TamanhoPulso * (1f + 0.3f * Mathf.Sin(t * Mathf.PI * 6f));
                 }
 
+                if (levaCodigo) SeguirPulso(codigoTexto.transform.parent, pulsos[0].position);
+
                 yield return null;
             }
 
+            codigoTexto.transform.parent.gameObject.SetActive(false);
             foreach (var p in pulsos) p.gameObject.SetActive(false);
 
             if (kit != null)
@@ -335,6 +358,13 @@ public class FluxoAcesso : MonoBehaviour
         painel.gameObject.SetActive(false);
         legenda.gameObject.SetActive(false);
         atual = null;
+    }
+
+    void SeguirPulso(Transform t, Vector3 pulso)
+    {
+        t.position = pulso + Vector3.up * AcimaDoPulso;
+        if (cam == null) cam = Camera.main;
+        if (cam != null) t.rotation = Quaternion.LookRotation(t.position - cam.transform.position, Vector3.up);
     }
 
     Vector3[] Caminho(Salto s)

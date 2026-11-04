@@ -56,17 +56,24 @@ public static class MontarBotoesSimulacao
         painel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
 
         var rt = (RectTransform)painel.transform;
-        rt.sizeDelta = new Vector2(320, 110);
-        rt.localScale = Vector3.one * 0.0007f;  // painel de ~22 cm: cabe o dedo sem tampar o kit
+        rt.sizeDelta = new Vector2(480, 110);
+        rt.localScale = Vector3.one * 0.0007f;  // painel de ~34 cm: cabe o dedo sem tampar o kit
         rt.position = new Vector3(0f, 1f, 0.5f);
 
         var fundo = painel.AddComponent<Image>();
         fundo.color = new Color(0f, 0f, 0f, 0.55f);
 
-        CriarBotao(painel.transform, "Autorizado", "SIMULAR\nAUTORIZADO",
-                   new Color(0.1f, 0.55f, 0.25f), -78f, controle, false);
-        CriarBotao(painel.transform, "Negado", "SIMULAR\nNEGADO",
-                   new Color(0.65f, 0.15f, 0.15f), 78f, controle, true);
+        var aut = CriarBotao(painel.transform, "Autorizado", "SIMULAR\nAUTORIZADO",
+                             new Color(0.1f, 0.55f, 0.25f), -155f);
+        UnityEventTools.AddBoolPersistentListener(aut.onClick, controle.Simular, false);
+
+        var neg = CriarBotao(painel.transform, "Negado", "SIMULAR\nNEGADO",
+                             new Color(0.65f, 0.15f, 0.15f), 0f);
+        UnityEventTools.AddBoolPersistentListener(neg.onClick, controle.Simular, true);
+
+        var como = CriarBotao(painel.transform, "ComoFunciona", "COMO\nFUNCIONA?",
+                              new Color(0.1f, 0.4f, 0.7f), 155f);
+        UnityEventTools.AddVoidPersistentListener(como.onClick, controle.ComoFunciona);
 
         QuickActionsAPI.AddPokeCanvasInteraction(painel);
         QuickActionsAPI.AddRayCanvasInteraction(painel);
@@ -82,8 +89,7 @@ public static class MontarBotoesSimulacao
         return log + "Painel criado e cena salva.";
     }
 
-    static void CriarBotao(Transform pai, string nome, string texto, Color cor,
-                           float x, ControleAcessoMR controle, bool negado)
+    static Button CriarBotao(Transform pai, string nome, string texto, Color cor, float x)
     {
         var go = new GameObject("Botao" + nome, typeof(RectTransform), typeof(Image), typeof(Button));
         var rt = (RectTransform)go.transform;
@@ -94,7 +100,6 @@ public static class MontarBotoesSimulacao
         go.GetComponent<Image>().color = cor;
 
         var botao = go.GetComponent<Button>();
-        UnityEventTools.AddBoolPersistentListener(botao.onClick, controle.Simular, negado);
 
         var rotulo = new GameObject("Texto", typeof(RectTransform), typeof(TextMeshProUGUI));
         var trt = (RectTransform)rotulo.transform;
@@ -110,5 +115,7 @@ public static class MontarBotoesSimulacao
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
+
+        return botao;
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using System.Collections.Generic;
 using System.Text;
@@ -50,7 +51,7 @@ public class ControleAcessoMR : MonoBehaviour
 
     // Botoes na frente-direita do kit (os cartoes ficam na frente-esquerda).
     const float DistanciaBotoes = 0.3f;
-    const float LadoBotoes = 0.25f;
+    const float LadoBotoes = 0.2f;
     const float AlturaBotoes = -0.1f;   // o kit inclinado desce na frente; botoes acompanham
 
     static readonly Color Ciano = new Color(0.3f, 0.85f, 1f, 0.95f);
@@ -100,6 +101,26 @@ public class ControleAcessoMR : MonoBehaviour
     MRUKTrackable qrAtual;
     Modo modo = Modo.Aguardando;
     int passo = -1;
+
+    // Tocar numa peca (dedo ou ponta do controle) abre a explicacao dela por alguns segundos.
+    const float RaioToquePeca = 0.06f;
+    const float RaioToqueEtiqueta = 0.04f;
+    const float AFrenteAberta = 0.05f;
+    const float TempoExplicacao = 8f;
+    const float TempoPassoTour = 5f;
+    float fecharExplicacaoEm = -1f;
+    int pecaTocada = -1;
+    Coroutine tour;
+
+    // Placar da feira: cartoes lidos hoje (o modo vitrine nao conta). Fica salvo no oculos.
+    const string ChaveDia = "v3_placar_dia", ChaveLib = "v3_placar_lib", ChaveNeg = "v3_placar_neg";
+    const float TamanhoPlacar = 0.0014f;
+    const float AbaixoDosBotoes = 0.065f;   // embaixo dos botoes: nao cobre o kit
+    TextMeshPro placar;
+    int liberadosHoje, negadosHoje;
+    bool simulandoVitrine;
+    Oculus.Interaction.Input.Hand[] maos;
+    readonly List<Vector3> pontas = new List<Vector3>(4);
     bool fundosPendentes = true;
     int totalDetectados;
     string ultimoTipo = "(nenhum)";
@@ -284,6 +305,7 @@ public class ControleAcessoMR : MonoBehaviour
         AtualizarPainel();
         AtualizarBoasVindas();
         AtualizarLuzEsp();
+        AtualizarToque();
 
         if (mostrarCartoesEm > 0f && Time.time > mostrarCartoesEm)
         {
@@ -307,10 +329,15 @@ public class ControleAcessoMR : MonoBehaviour
 
         AtualizarAltura();
 
-        foreach (var e in etiquetas)
+        for (int i = 0; i < etiquetas.Count; i++)
         {
+            var e = etiquetas[i];
             Vector3 a = e.ancora.position;
             Vector3 p = a + Vector3.up * AlturaEtiqueta;
+
+            // A etiqueta aberta (com explicacao) vem um pouco para a frente das vizinhas.
+            if (i == passo && cabeca != null)
+                p += (cabeca.position - p).normalized * AFrenteAberta;
 
             e.raiz.position = p;
 
@@ -473,6 +500,98 @@ public class ControleAcessoMR : MonoBehaviour
         return Mathf.Abs(v) < 0.2f ? 0f : v;
     }
 
+    // ---------- Explicacao por toque e "Como funciona?" ----------
+    void AtualizarToque()
+    {
+        if (fecharExplicacaoEm > 0f && Time.time > fecharExplicacaoEm)
+        {
+            fecharExplicacaoEm = -1f;
+            passo = -1;
+            AplicarVisual();
+        }
+
+        // Durante a animacao do cartao nada de explicacao na frente (uma coisa por vez).
+        if (fluxo != null && fluxo.Ocupado && passo >= 0)
+        {
+            if (tour != null) { StopCoroutine(tour); tour = null; }
+            fecharExplicacaoEm = -1f;
+            passo = -1;
+            AplicarVisual();
+        }
+
+        if (etiquetas.Count == 0 || !raiz.gameObject.activeSelf || kit == null || kit.SegurandoCartao ||
+            (fluxo != null && fluxo.Ocupado))
+        {
+            pecaTocada = -1;
+            return;
+        }
+
+        PontasDosDedos();
+
+        int tocando = -1;
+
+        for (int i = 0; i < etiquetas.Count && tocando < 0; i++)
+            foreach (var p in pontas)
+                if (Vector3.Distance(p, etiquetas[i].ancora.position) < RaioToquePeca ||
+                    Vector3.Distance(p, etiquetas[i].raiz.position) < RaioToqueEtiqueta)
+                {
+                    tocando = i;
+                    break;
+                }
+
+        // So conta quando o dedo chega (nao enquanto fica parado na peca).
+        if (tocando >= 0 && tocando != pecaTocada) Explicar(tocando, TempoExplicacao);
+        pecaTocada = tocando;
+    }
+
+    void PontasDosDedos()
+    {
+        pontas.Clear();
+
+        if (maos == null || maos.Length == 0)
+            maos = FindObjectsByType<Oculus.Interaction.Input.Hand>(FindObjectsSortMode.None);
+
+        foreach (var m in maos)
+            if (m != null && m.IsTrackedDataValid &&
+                m.GetJointPose(Oculus.Interaction.Input.HandJointId.HandIndexTip, out Pose pose))
+                pontas.Add(pose.position);
+
+        var rig = FindFirstObjectByType<OVRCameraRig>();
+        if (rig == null) return;
+
+        foreach (var c in new[] { OVRInput.Controller.LTouch, OVRInput.Controller.RTouch })
+            if (OVRInput.IsControllerConnected(c) && OVRInput.GetControllerPositionTracked(c))
+                pontas.Add(rig.trackingSpace.TransformPoint(OVRInput.GetLocalControllerPosition(c)));
+    }
+
+    void Explicar(int i, float tempo)
+    {
+        if (tour != null && tempo == TempoExplicacao) { StopCoroutine(tour); tour = null; }
+
+        passo = i;
+        fecharExplicacaoEm = Time.time + tempo;
+        ultimaAtividade = Time.time;
+        AplicarVisual();
+    }
+
+    // Botao "Como funciona?": passa por cada peca, na ordem do sinal.
+    public void ComoFunciona()
+    {
+        if (tour != null) StopCoroutine(tour);
+        tour = StartCoroutine(Tour());
+    }
+
+    IEnumerator Tour()
+    {
+        for (int i = 0; i < etiquetas.Count; i++)
+        {
+            Explicar(i, TempoPassoTour);
+            yield return new WaitForSeconds(TempoPassoTour);
+        }
+
+        tour = null;
+    }
+
     void ProximoPasso()
     {
         passo++;
@@ -575,6 +694,56 @@ public class ControleAcessoMR : MonoBehaviour
         botoesSimulacao.position = p;
         botoesSimulacao.rotation = Quaternion.LookRotation(p - cabeca.position, Vector3.up);
         botoesSimulacao.gameObject.SetActive(true);
+
+        if (placar == null) CriarPlacar();
+        placar.transform.position = p - Vector3.up * AbaixoDosBotoes;
+        placar.transform.rotation = botoesSimulacao.rotation;
+    }
+
+    // ---------- Placar da feira ----------
+    void CriarPlacar()
+    {
+        var go = new GameObject("Placar");
+        go.transform.SetParent(ajuste, false);
+        placar = Texto3D.Criar(go, "", TamanhoPlacar);
+        placar.color = new Color(0.85f, 0.9f, 0.95f);
+
+        string hoje = System.DateTime.Now.ToString("yyyy-MM-dd");
+
+        if (PlayerPrefs.GetString(ChaveDia, "") == hoje)
+        {
+            liberadosHoje = PlayerPrefs.GetInt(ChaveLib, 0);
+            negadosHoje = PlayerPrefs.GetInt(ChaveNeg, 0);
+        }
+
+        EscreverPlacar();
+    }
+
+    void Contar(string status)
+    {
+        switch (status)
+        {
+            case "ENTRADA ABERTA":
+            case "ENTRADA FECHADA": liberadosHoje++; break;
+            case "NAO CADASTRADO":
+            case "BLOQUEADO": negadosHoje++; break;
+            default: return;
+        }
+
+        PlayerPrefs.SetString(ChaveDia, System.DateTime.Now.ToString("yyyy-MM-dd"));
+        PlayerPrefs.SetInt(ChaveLib, liberadosHoje);
+        PlayerPrefs.SetInt(ChaveNeg, negadosHoje);
+        PlayerPrefs.Save();
+        EscreverPlacar();
+    }
+
+    void EscreverPlacar()
+    {
+        if (placar == null) return;
+        int total = liberadosHoje + negadosHoje;
+        placar.text = "<b>HOJE: " + total + (total == 1 ? " cartão" : " cartões") + "</b>\n" +
+                      "<color=#7CFF9A>" + liberadosHoje + " liberados</color>   " +
+                      "<color=#FF8080>" + negadosHoje + " negados</color>";
     }
 
     // ---------- ESP32, cartao virtual e animacao ----------
@@ -597,6 +766,7 @@ public class ControleAcessoMR : MonoBehaviour
     {
         ultimoEsp = status;
         fecharVirtualEm = -1f;   // quem manda na cancela agora e o ESP32
+        Contar(status);
 
         if (kit != null && (kit.CartoesVisiveis || mostrarCartoesEm > 0f))
         {
@@ -612,6 +782,7 @@ public class ControleAcessoMR : MonoBehaviour
         string status = StatusDoCartao(liberado, kit.CancelaAberta);
 
         fecharVirtualEm = status == "ENTRADA ABERTA" ? Time.time + TempoFechamentoVirtual : -1f;
+        if (!simulandoVitrine) Contar(status);
         fluxo.Mostrar(status);
     }
 
@@ -696,10 +867,10 @@ public class ControleAcessoMR : MonoBehaviour
         string[] titulos = { "LEITOR NFC", "ESP32", "LCD", "SERVO" };
         string[] explicacoes =
         {
-            "Le o cartao e\nenvia o codigo dele.",
-            "Recebe o codigo e\ndecide se autoriza.",
-            "Mostra o resultado:\nliberado ou negado.",
-            "Abre a cancela quando\no acesso e liberado."
+            "Cria um campo de rádio: o cartão\nNFC responde com o seu código.",
+            "O \"cérebro\": compara o código\ncom a lista e decide.",
+            "Tela que mostra a resposta:\nLIBERADO ou NEGADO.",
+            "Motor que gira a cancela\nquando o ESP32 manda."
         };
 
         for (int i = 0; i < titulos.Length; i++)
@@ -748,7 +919,7 @@ public class ControleAcessoMR : MonoBehaviour
                 continue;
             }
 
-            Vector3 tam = new Vector3(b.size.x + 0.02f, b.size.y + 0.012f, 1f);
+            Vector3 tam = new Vector3(b.size.x + 0.03f, b.size.y + 0.012f, 1f);
 
             e.fundoT.localPosition = new Vector3(b.center.x, b.center.y, 0.002f);
             e.fundoT.localScale = tam;
@@ -819,7 +990,7 @@ public class ControleAcessoMR : MonoBehaviour
 
         if (boasVindas == null) CriarBoasVindas();
 
-        bool livre = !fluxo.Ocupado;
+        bool livre = !fluxo.Ocupado && passo < 0;   // explicacao aberta: boas-vindas saem da frente
         boasVindas.gameObject.SetActive(livre);
 
         if (livre && cabeca != null)
@@ -834,7 +1005,12 @@ public class ControleAcessoMR : MonoBehaviour
         }
 
         if (!livre) ultimaAtividade = Time.time;
-        else if (Time.time - ultimaAtividade > TempoVitrine) Simular(proximaSimulacaoNegada);
+        else if (Time.time - ultimaAtividade > TempoVitrine)
+        {
+            simulandoVitrine = true;
+            Simular(proximaSimulacaoNegada);
+            simulandoVitrine = false;
+        }
     }
 
     void CriarBoasVindas()

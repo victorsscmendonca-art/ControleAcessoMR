@@ -45,6 +45,16 @@ public class TestesAcesso
         StringAssert.Contains("AUTORIZADO", rota.titulo);
     }
 
+    // O codigo que viaja no fio so aparece quando um cartao e lido (nao no fechamento automatico).
+    [Test]
+    public void CodigoDoCartaoSoQuandoUmCartaoELido()
+    {
+        Assert.AreEqual(FluxoAcesso.CodigoLiberado, FluxoAcesso.Rota("ENTRADA ABERTA").codigo);
+        Assert.AreEqual(FluxoAcesso.CodigoNegado, FluxoAcesso.Rota("NAO CADASTRADO").codigo);
+        Assert.IsNull(FluxoAcesso.Rota("FECHAMENTO AUTOMATICO").codigo);
+        Assert.IsNull(FluxoAcesso.Rota("ABERTURA MANUAL").codigo);
+    }
+
     [Test]
     public void CartaoLiberadoComCancelaAbertaFecha()
     {

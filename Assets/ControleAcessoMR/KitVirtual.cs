@@ -286,6 +286,17 @@ public class KitVirtual : MonoBehaviour
         foreach (var c in cartoes) DevolverCartao(c);
     }
 
+    // Alguem esta com um cartao virtual na mao (o toque nas pecas espera).
+    public bool SegurandoCartao
+    {
+        get
+        {
+            foreach (var c in cartoes)
+                if (c.pegavel != null && c.pegavel.SelectingPointsCount > 0) return true;
+            return false;
+        }
+    }
+
     // Apresentador esconde os cartoes virtuais quando o visitante usa o cartao real.
     public bool CartoesVisiveis
     {
