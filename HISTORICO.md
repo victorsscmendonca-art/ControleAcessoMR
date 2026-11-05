@@ -96,3 +96,12 @@ Cole isto para o agente:
 - Arquivos: `docs/qr/` (PDF A4 de 2 páginas e PNGs). Gerados por `python Ferramentas/gerar_qr.py`.
 - A frequência de mãos do app está em LOW (HIGH/MAX desligariam o rastreamento de QR).
 - O APK pelo celular não instala ("problema ao analisar o pacote"): ainda sem causa confirmada; é feito só para o Quest. Testar no óculos.
+
+## Versão beta 0.4.0 (ramo `beta`)
+
+- App separado no óculos: "Controle de Acesso MR (Beta)" (`com.victor.controleacessomr.beta`); a estável v0.3.1 fica no `main`.
+- Novidades: tocar na peça → explicação; botão "Como funciona?"; código de exemplo viajando no fio; placar da feira.
+- Plano: [docs/ideas/versao-beta.md](docs/ideas/versao-beta.md). APK na Release **v0.4.0-beta** (pré-lançamento).
+- Build: o modo automático sem janela (`-batchmode`) travou 2x ao recarregar o código; o APK beta foi gerado **por dentro do
+  Unity aberto** (Pipeline `build run`), tirando antes o `DevAgentSettings` de `Resources` e devolvendo depois.
+- Falta: mão-guia animada (opcional) e testar no óculos.
