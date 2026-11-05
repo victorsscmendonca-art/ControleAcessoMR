@@ -60,6 +60,7 @@ Quando o dono pedir o APK:
 - [ ] Testar no óculos de verdade (QR, mãos, Wi-Fi, desempenho, sons).
 - [ ] Gravar o `.ino` no ESP32 e testar `http://192.168.4.1/evento` pelo celular.
 - [ ] Trocar as senhas fracas do ESP32 (`WIFI_SENHA`, `ADMIN_SENHA`).
+- [ ] APK **v0.3.2** (código pronto, falta gerar no PC): aviso "Procurando o QR..." na tela e kit aparece sozinho após 8 s sem QR (antes, só com as mãos, a tela ficava vazia). versionCode 5.
 - [x] APK **v0.3.1** (limpo: sem DevAgentSettings/token, verificado) publicado na [Release](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.3.1). Substitui a v0.3.0.
 - [x] (antiga) APK **v0.3.0** gerado e publicado na [Release](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.3.0) (2026-11-02). Assinado com chave de depuração (serve para instalar no óculos do dono, não para a loja).
 - [ ] Para a loja da Meta (se um dia for): criar keystore de release, guardar com backup e gerar de novo.
