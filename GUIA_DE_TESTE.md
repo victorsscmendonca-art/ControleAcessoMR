@@ -7,7 +7,7 @@ Marque cada item quando funcionar. Se algo falhar, anote o número do passo e me
 
 ## Antes de começar (checklist)
 
-- [ ] ESP32 com o `.ino` atualizado gravado (Arduino IDE).
+- [x] ESP32 com o `.ino` atualizado gravado (Arduino IDE).
 - [ ] Kit real ligado: LCD acende e mostra a mensagem inicial.
 - [ ] QR code impresso: [docs/qr/QR_para_imprimir.pdf](docs/qr/QR_para_imprimir.pdf) (A4, **tamanho real 100%**, papel branco fosco). Página 1: QR de **12 cm** (recomendado); página 2: **15 cm** (reserva). Mantenha a **borda branca** em volta e cole **deitado e plano** na mesa ao lado do kit real. A Meta diz que o QR deve ser relativamente grande, perto do óculos e bem iluminado; sem logo (o QR é gerado por `Ferramentas/gerar_qr.py`).
 - [ ] Óculos carregado, com o APK instalado.
