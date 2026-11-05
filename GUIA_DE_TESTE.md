@@ -31,7 +31,7 @@ Marque cada item quando funcionar. Se algo falhar, anote o número do passo e me
 **Esperado:** o kit virtual (2x maior) aparece **na frente dos seus olhos**, quase em pé, com a
 mensagem **CONTROLE DE ACESSO POR NFC** acima dele. Olhando para baixo você vê o kit real na mesa.
 
-**Se não aparecer:** aperte **A** no controle direito (o kit aparece na sua frente sem o QR).
+**Se não aparecer:** espere uns **8 segundos** (o kit aparece sozinho na sua frente, mesmo usando só as mãos) ou aperte **A** no controle direito. Se depois o QR for visto, o kit pula para cima dele.
 
 ## Passo 3 — Ver se o ESP32 está conectado
 

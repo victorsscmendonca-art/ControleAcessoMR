@@ -29,6 +29,7 @@ public class ControleAcessoMR : MonoBehaviour
 
     const float TamanhoEtiqueta = 0.0022f;
     const float TamanhoPainel = 0.004f;
+    const float EsperaQR = 8f;        // sem QR em 8 s: kit aparece sozinho na frente (quem usa so as maos)
     const float TempoVitrine = 40f;   // parado ha 40 s: simula sozinho (modo vitrine da feira)
     const float AlturaEtiqueta = 0.13f;
     const float TempoFechamentoVirtual = 8f;
@@ -284,6 +285,11 @@ public class ControleAcessoMR : MonoBehaviour
         AtualizarPainel();
         AtualizarBoasVindas();
         AtualizarLuzEsp();
+
+        // Sem controle nao ha botao A: se o QR nao foi visto, coloca o kit sozinho.
+        // Se o QR aparecer depois, o kit pula para ele normalmente.
+        if (modo == Modo.Aguardando && Time.timeSinceLevelLoad > EsperaQR)
+            PosicionarManual();
 
         if (mostrarCartoesEm > 0f && Time.time > mostrarCartoesEm)
         {
