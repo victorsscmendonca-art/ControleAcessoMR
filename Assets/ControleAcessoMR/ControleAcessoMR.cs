@@ -286,6 +286,8 @@ public class ControleAcessoMR : MonoBehaviour
         AtualizarBoasVindas();
         AtualizarLuzEsp();
 
+        AtualizarAvisoEspera();
+
         // Sem controle nao ha botao A: se o QR nao foi visto, coloca o kit sozinho.
         // Se o QR aparecer depois, o kit pula para ele normalmente.
         if (modo == Modo.Aguardando && Time.timeSinceLevelLoad > EsperaQR)
@@ -785,6 +787,36 @@ public class ControleAcessoMR : MonoBehaviour
 
         painel = ConfigurarTexto(go, "iniciando...", TamanhoPainel);
         painel.gameObject.SetActive(false);   // so para o apresentador: botao B
+    }
+
+    // Aviso na frente dos olhos enquanto o kit nao aparece (antes a tela ficava vazia).
+    TextMeshPro avisoEspera;
+
+    void AtualizarAvisoEspera()
+    {
+        bool esperando = modo == Modo.Aguardando;
+
+        if (!esperando)
+        {
+            if (avisoEspera != null) avisoEspera.gameObject.SetActive(false);
+            return;
+        }
+
+        if (avisoEspera == null)
+        {
+            if (cabeca == null) cabeca = Cabeca();
+            if (cabeca == null) return;
+
+            var go = new GameObject("AvisoEspera");
+            go.transform.SetParent(cabeca, false);
+            go.transform.localPosition = new Vector3(0f, -0.1f, 1.0f);
+            avisoEspera = ConfigurarTexto(go, "", TamanhoPainel * 1.3f);
+        }
+
+        int falta = Mathf.Max(0, Mathf.CeilToInt(EsperaQR - Time.timeSinceLevelLoad));
+        string texto = "Procurando o QR code na mesa...\nO kit aparece sozinho em " + falta + " s";
+        if (!TemPermissaoCena()) texto += "\n\nSem permissao de \"dados do espaco\": o QR nao sera lido";
+        avisoEspera.text = texto;
     }
 
     void AlternarCartoes()
