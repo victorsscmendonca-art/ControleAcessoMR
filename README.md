@@ -28,7 +28,8 @@ Os 2 cartões existem nos dois mundos: cartões tipo cartão de crédito escrito
 
 > **Guia de teste passo a passo e tabela de botões:** [GUIA_DE_TESTE.md](GUIA_DE_TESTE.md)
 > **Histórico, decisões e como continuar num chat novo:** [HISTORICO.md](HISTORICO.md)
-> **APK:** fica nas **Releases** deste repositório (última: v0.3.1).
+> **Quest da feira:** [Guia por versão, modos e troca de visitantes](docs/GUIA_FEIRA.md)
+> **APK:** [pré-release 0.4.1-beta para Quest 3/3S](https://github.com/victorsscmendonca-art/ControleAcessoMR/releases/tag/v0.4.1-beta).
 > **QR code para imprimir:** [docs/qr/QR_para_imprimir.pdf](docs/qr/QR_para_imprimir.pdf)
 
 ## O kit físico
